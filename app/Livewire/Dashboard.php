@@ -7,6 +7,7 @@ use App\Models\OrdenCompra;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Venta;
+use App\Models\VentaDetalle;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -27,6 +28,12 @@ class Dashboard extends Component
         $ordenesPendientes = 0;
         $ventasHoyCantidad = 0;
         $ventasHoyTotal = 0.0;
+
+        $inicioMes = now()->startOfMonth();
+        $finMes = now()->endOfMonth();
+        $ventasMesCantidad = 0;
+        $ventasMesTotal = 0.0;
+        $topProductosMes = collect();
 
         $desde = now()->subDays(6)->startOfDay();
         $hasta = now()->endOfDay();
@@ -51,6 +58,21 @@ class Dashboard extends Component
             $finHoy = now()->endOfDay();
             $ventasHoyCantidad = Venta::query()->whereBetween('fecha_venta', [$inicioHoy, $finHoy])->count();
             $ventasHoyTotal = (float) (Venta::query()->whereBetween('fecha_venta', [$inicioHoy, $finHoy])->sum('total') ?? 0);
+
+            $ventasMesCantidad = Venta::query()->whereBetween('fecha_venta', [$inicioMes, $finMes])->count();
+            $ventasMesTotal = (float) (Venta::query()->whereBetween('fecha_venta', [$inicioMes, $finMes])->sum('total') ?? 0);
+
+            $topProductosMes = VentaDetalle::query()
+                ->join('ventas', 'venta_detalles.venta_id', '=', 'ventas.id')
+                ->join('productos', 'venta_detalles.producto_id', '=', 'productos.id')
+                ->whereBetween('ventas.fecha_venta', [$inicioMes, $finMes])
+                ->selectRaw('productos.id as producto_id, productos.codigo as codigo, productos.nombre as nombre')
+                ->selectRaw('SUM(venta_detalles.cantidad) as cantidad')
+                ->selectRaw('SUM(venta_detalles.subtotal) as total_vendido')
+                ->groupBy('productos.id', 'productos.codigo', 'productos.nombre')
+                ->orderByDesc('cantidad')
+                ->limit(5)
+                ->get();
 
             /** @var \Illuminate\Support\Collection<string, float|int|string> $ventasPorDia */
             $ventasPorDia = Venta::query()
@@ -89,6 +111,10 @@ class Dashboard extends Component
             'ordenesPendientes' => $ordenesPendientes,
             'ventasHoyCantidad' => $ventasHoyCantidad,
             'ventasHoyTotal' => $ventasHoyTotal,
+            'ventasMesCantidad' => $ventasMesCantidad,
+            'ventasMesTotal' => $ventasMesTotal,
+            'topProductosMes' => $topProductosMes,
+            'mesLabel' => $inicioMes->format('m/Y'),
             'ventas7d' => $ventas7d,
         ]);
     }
