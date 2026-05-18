@@ -60,7 +60,7 @@
 
                     <div class="mt-3 space-y-3">
                         @foreach ($items as $i => $item)
-                            <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
+                            <div class="grid grid-cols-1 gap-2 md:grid-cols-6">
                                 <div class="md:col-span-2">
                                     <label class="block text-xs text-gray-600">Producto</label>
                                     <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.producto_id">
@@ -72,14 +72,29 @@
                                     @error('items.'.$i.'.producto_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                                 </div>
                                 <div>
+                                    <label class="block text-xs text-gray-600">Tipo</label>
+                                    <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.tipo_cantidad">
+                                        <option value="unidad">Unidad</option>
+                                        <option value="empaque">Empaque/paquete</option>
+                                    </select>
+                                    @error('items.'.$i.'.tipo_cantidad') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                </div>
+                                <div>
                                     <label class="block text-xs text-gray-600">Cantidad</label>
                                     <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.cantidad" />
                                     @error('items.'.$i.'.cantidad') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-600">Precio unit.</label>
+                                    <label class="block text-xs text-gray-600">
+                                        {{ ($item['tipo_cantidad'] ?? 'unidad') === 'empaque' ? 'Precio por empaque' : 'Precio unit.' }}
+                                    </label>
                                     <input type="number" step="0.01" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.precio_unitario" />
                                     @error('items.'.$i.'.precio_unitario') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                                </div>
+                                <div class="md:col-span-1">
+                                    @if (($item['tipo_cantidad'] ?? 'unidad') === 'empaque')
+                                        <div class="mt-6 text-xs text-gray-600">Se convierte a unidades usando “Unidades por empaque” del producto.</div>
+                                    @endif
                                 </div>
                             </div>
 

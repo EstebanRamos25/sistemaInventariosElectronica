@@ -42,8 +42,13 @@
 
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                        <label class="block text-sm font-medium">Código</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="codigo" />
+                        <label class="block text-sm font-medium">Código / SKU</label>
+                        <input
+                            class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+                            placeholder='Ej: LG-40IN-LM1234-3V-5LED-PK4'
+                            wire:model="codigo"
+                        />
+                        <div class="mt-1 text-xs text-gray-600">Si lo dejas vacío, el sistema sugiere uno con Marca/Modelo/Pulgadas.</div>
                         @error('codigo') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                     <div>
@@ -64,8 +69,32 @@
                         <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="marca" />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Modelo TV</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="modelo_tv" />
+                        <label class="block text-sm font-medium">Modelo(s) TV (compatibles)</label>
+                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Ej: 40LF5650, 40LF5700" wire:model="modelo_tv" />
+                        <div class="mt-1 text-xs text-gray-600">Puedes colocar varios modelos separados por coma.</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                    <div>
+                        <label class="block text-sm font-medium">Pulgadas TV</label>
+                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="pulgadas_tv" />
+                        @error('pulgadas_tv') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Voltaje LED (V)</label>
+                        <input type="number" step="0.01" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="voltaje_led" />
+                        @error('voltaje_led') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">LEDs por barra</label>
+                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="leds_por_barra" />
+                        @error('leds_por_barra') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Características barra</label>
+                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="caracteristicas_barra" />
+                        @error('caracteristicas_barra') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                 </div>
 
@@ -168,7 +197,21 @@
                                 <td class="py-2 font-medium">{{ $p->codigo }}</td>
                                 <td class="py-2">{{ $p->nombre }}</td>
                                 <td class="py-2 hidden lg:table-cell text-gray-700">
-                                    {{ $p->marca }}@if($p->marca && $p->modelo_tv) · @endif{{ $p->modelo_tv }}
+                                    {{ $p->marca }}@if($p->marca && $p->modelo_tv) · @endif{{ $p->modelo_tv }}@if($p->pulgadas_tv) · {{ $p->pulgadas_tv }}&quot;@endif
+                                    @if($p->voltaje_led || $p->leds_por_barra)
+                                        <span class="text-gray-500">
+                                            ·
+                                            @if($p->voltaje_led)
+                                                {{ rtrim(rtrim(number_format((float) $p->voltaje_led, 2, '.', ''), '0'), '.') }}V
+                                            @endif
+                                            @if($p->voltaje_led && $p->leds_por_barra)
+                                                ·
+                                            @endif
+                                            @if($p->leds_por_barra)
+                                                {{ $p->leds_por_barra }} LED/barra
+                                            @endif
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="py-2">{{ $p->categoria?->nombre }}</td>
                                 <td class="py-2 hidden xl:table-cell text-gray-700">{{ $p->ubicacion }}</td>

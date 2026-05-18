@@ -15,7 +15,9 @@ class RecepcionesRegistrarPage extends Component
     public int|string $orden_compra_id = '';
     public ?string $observaciones = null;
 
-    /** @var array<int, array{producto_id:int, codigo:string, nombre:string, cantidad_ordenada:int, cantidad_recibida:int}> */
+    public bool $recibir_en_empaques = false;
+
+    /** @var array<int, array{producto_id:int, codigo:string, nombre:string, unidad:?string, empaque:?string, unidades_por_empaque:?int, cantidad_ordenada:int, cantidad_recibida:int}> */
     public array $items = [];
 
     public ?int $ultima_recepcion_id = null;
@@ -50,6 +52,9 @@ class RecepcionesRegistrarPage extends Component
                     'producto_id' => (int) $d->producto_id,
                     'codigo' => (string) $d->producto?->codigo,
                     'nombre' => (string) $d->producto?->nombre,
+                    'unidad' => $d->producto?->unidad,
+                    'empaque' => $d->producto?->empaque,
+                    'unidades_por_empaque' => $d->producto?->unidades_por_empaque,
                     'cantidad_ordenada' => (int) $d->cantidad,
                     'cantidad_recibida' => 0,
                 ];
@@ -67,10 +72,20 @@ class RecepcionesRegistrarPage extends Component
 
         $items = collect($this->items)
             ->filter(fn ($i) => (int) ($i['cantidad_recibida'] ?? 0) > 0)
-            ->map(fn ($i) => [
-                'producto_id' => (int) $i['producto_id'],
-                'cantidad_recibida' => (int) $i['cantidad_recibida'],
-            ])
+            ->map(function ($i) {
+                $cantidadIngresada = (int) $i['cantidad_recibida'];
+                $unidadesPorEmpaque = (int) ($i['unidades_por_empaque'] ?? 0);
+
+                $cantidadUnidades = $cantidadIngresada;
+                if ($this->recibir_en_empaques && $unidadesPorEmpaque > 0) {
+                    $cantidadUnidades = $cantidadIngresada * $unidadesPorEmpaque;
+                }
+
+                return [
+                    'producto_id' => (int) $i['producto_id'],
+                    'cantidad_recibida' => $cantidadUnidades,
+                ];
+            })
             ->values()
             ->all();
 

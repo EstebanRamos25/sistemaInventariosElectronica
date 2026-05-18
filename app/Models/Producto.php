@@ -27,6 +27,10 @@ class Producto extends Model
         'descripcion',
         'marca',
         'modelo_tv',
+        'pulgadas_tv',
+        'voltaje_led',
+        'leds_por_barra',
+        'caracteristicas_barra',
         'unidad',
         'empaque',
         'unidades_por_empaque',
@@ -43,6 +47,7 @@ class Producto extends Model
     protected $casts = [
         'precio_compra' => 'decimal:2',
         'precio_venta' => 'decimal:2',
+        'voltaje_led' => 'decimal:2',
         'activo' => 'boolean',
     ];
 

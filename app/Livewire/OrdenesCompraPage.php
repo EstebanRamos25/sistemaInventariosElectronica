@@ -21,14 +21,14 @@ class OrdenesCompraPage extends Component
     public ?string $fecha_estimada_llegada = null;
     public ?string $observaciones = null;
 
-    /** @var array<int, array{producto_id:int|string, cantidad:int|string, precio_unitario:string|int|float}> */
+    /** @var array<int, array{producto_id:int|string, tipo_cantidad:'unidad'|'empaque', cantidad:int|string, precio_unitario:string|int|float}> */
     public array $items = [];
 
     public function mount(): void
     {
         $this->fecha_orden = now()->toDateString();
         $this->items = [
-            ['producto_id' => '', 'cantidad' => 1, 'precio_unitario' => '0.00'],
+            ['producto_id' => '', 'tipo_cantidad' => 'unidad', 'cantidad' => 1, 'precio_unitario' => '0.00'],
         ];
     }
 
@@ -43,7 +43,7 @@ class OrdenesCompraPage extends Component
 
     public function addItem(): void
     {
-        $this->items[] = ['producto_id' => '', 'cantidad' => 1, 'precio_unitario' => '0.00'];
+        $this->items[] = ['producto_id' => '', 'tipo_cantidad' => 'unidad', 'cantidad' => 1, 'precio_unitario' => '0.00'];
     }
 
     public function removeItem(int $index): void
@@ -66,11 +66,61 @@ class OrdenesCompraPage extends Component
             'observaciones' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.producto_id' => ['required', 'integer', Rule::exists('productos', 'id')],
+            'items.*.tipo_cantidad' => ['required', 'string', Rule::in(['unidad', 'empaque'])],
             'items.*.cantidad' => ['required', 'integer', 'min:1'],
             'items.*.precio_unitario' => ['required', 'numeric', 'min:0'],
         ]);
 
-        DB::transaction(function () {
+        $productoIds = collect($this->items)
+            ->pluck('producto_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $productosPorId = Producto::query()
+            ->whereIn('id', $productoIds)
+            ->get(['id', 'unidades_por_empaque'])
+            ->keyBy('id');
+
+        $itemsNormalizados = [];
+        $total = 0.0;
+
+        foreach ($this->items as $item) {
+            $productoId = (int) $item['producto_id'];
+            $tipoCantidad = (string) ($item['tipo_cantidad'] ?? 'unidad');
+
+            $cantidadIngresada = (int) $item['cantidad'];
+            $precioIngresado = (float) $item['precio_unitario'];
+
+            $cantidadUnidades = $cantidadIngresada;
+            $precioUnitario = $precioIngresado;
+
+            if ($tipoCantidad === 'empaque') {
+                /** @var \App\Models\Producto|null $producto */
+                $producto = $productosPorId[$productoId] ?? null;
+                $unidadesPorEmpaque = (int) ($producto?->unidades_por_empaque ?? 0);
+                if ($unidadesPorEmpaque <= 0) {
+                    throw new \InvalidArgumentException('Para comprar por empaque, el producto debe tener “Unidades por empaque”.');
+                }
+
+                $cantidadUnidades = $cantidadIngresada * $unidadesPorEmpaque;
+                $precioUnitario = $precioIngresado / $unidadesPorEmpaque;
+            }
+
+            $subtotal = $cantidadUnidades * $precioUnitario;
+            $total += $subtotal;
+
+            $itemsNormalizados[] = [
+                'producto_id' => $productoId,
+                'cantidad' => $cantidadUnidades,
+                'precio_unitario' => $precioUnitario,
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        DB::transaction(function () use ($itemsNormalizados, $total) {
             $orden = OrdenCompra::query()->create([
                 'proveedor_id' => (int) $this->proveedor_id,
                 'numero_orden' => $this->numero_orden,
@@ -81,18 +131,12 @@ class OrdenesCompraPage extends Component
                 'observaciones' => $this->observaciones,
             ]);
 
-            $total = 0.0;
-            foreach ($this->items as $item) {
-                $cantidad = (int) $item['cantidad'];
-                $precio = (float) $item['precio_unitario'];
-                $subtotal = $cantidad * $precio;
-                $total += $subtotal;
-
+            foreach ($itemsNormalizados as $row) {
                 $orden->detalles()->create([
-                    'producto_id' => (int) $item['producto_id'],
-                    'cantidad' => $cantidad,
-                    'precio_unitario' => number_format($precio, 2, '.', ''),
-                    'subtotal' => number_format($subtotal, 2, '.', ''),
+                    'producto_id' => (int) $row['producto_id'],
+                    'cantidad' => (int) $row['cantidad'],
+                    'precio_unitario' => number_format((float) $row['precio_unitario'], 2, '.', ''),
+                    'subtotal' => number_format((float) $row['subtotal'], 2, '.', ''),
                 ]);
             }
 
@@ -104,6 +148,6 @@ class OrdenesCompraPage extends Component
 
         $this->reset(['proveedor_id', 'numero_orden', 'fecha_estimada_llegada', 'observaciones']);
         $this->fecha_orden = now()->toDateString();
-        $this->items = [['producto_id' => '', 'cantidad' => 1, 'precio_unitario' => '0.00']];
+        $this->items = [['producto_id' => '', 'tipo_cantidad' => 'unidad', 'cantidad' => 1, 'precio_unitario' => '0.00']];
     }
 }

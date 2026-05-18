@@ -41,6 +41,14 @@
             <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="observaciones" />
         </div>
 
+        <div class="mt-4">
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" class="rounded border-gray-300" wire:model="recibir_en_empaques" />
+                Capturar “recibido ahora” en empaques/paquetes (se convierte a unidades)
+            </label>
+            <div class="mt-1 text-xs text-gray-600">Si un producto no tiene “Unidades por empaque”, se toma como unidades.</div>
+        </div>
+
         <div class="mt-6">
             <h2 class="font-medium">Detalle</h2>
 
@@ -59,10 +67,20 @@
                                 <td class="py-2">
                                     <div class="font-medium">{{ $item['codigo'] }}</div>
                                     <div class="text-gray-700">{{ $item['nombre'] }}</div>
+                                    @if ($recibir_en_empaques && (int) ($item['unidades_por_empaque'] ?? 0) > 0)
+                                        <div class="text-xs text-gray-600">1 empaque = {{ (int) $item['unidades_por_empaque'] }} {{ $item['unidad'] ?? 'unid.' }}</div>
+                                    @endif
                                 </td>
                                 <td class="py-2">{{ $item['cantidad_ordenada'] }}</td>
                                 <td class="py-2">
-                                    <input type="number" class="w-32 rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.cantidad_recibida" />
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" class="w-32 rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.cantidad_recibida" />
+                                        @if ($recibir_en_empaques && (int) ($item['unidades_por_empaque'] ?? 0) > 0)
+                                            <div class="text-xs text-gray-600">
+                                                = {{ (int) ($item['cantidad_recibida'] ?? 0) * (int) $item['unidades_por_empaque'] }} {{ $item['unidad'] ?? 'unid.' }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
