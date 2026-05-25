@@ -19,6 +19,7 @@
             <nav class="mt-6 space-y-1 text-sm">
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('dashboard') }}">Dashboard</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('categorias') }}">Categorías</a>
+                <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('marcas') }}">Marcas</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('productos') }}">Productos</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('proveedores') }}">Proveedores</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('ordenes_compra') }}">Compras / Órdenes</a>

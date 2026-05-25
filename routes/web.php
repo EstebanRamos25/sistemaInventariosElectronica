@@ -4,6 +4,7 @@ use App\Livewire\AlertasPage;
 use App\Livewire\CajasPage;
 use App\Livewire\CategoriasPage;
 use App\Livewire\Dashboard;
+use App\Livewire\MarcasPage;
 use App\Livewire\OrdenesCompraPage;
 use App\Livewire\ProductosPage;
 use App\Livewire\ProveedoresPage;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', Dashboard::class)->name('dashboard');
 
 Route::get('/categorias', CategoriasPage::class)->name('categorias');
+Route::get('/marcas', MarcasPage::class)->name('marcas');
 Route::get('/productos', ProductosPage::class)->name('productos');
 Route::get('/proveedores', ProveedoresPage::class)->name('proveedores');
 

@@ -113,6 +113,7 @@
 
         <section class="rounded border border-gray-200 bg-white p-4">
             <h2 class="font-medium">Órdenes recientes</h2>
+            <div class="mt-1 text-xs text-gray-600">“Total” = monto total estimado de la orden (suma de subtotales).</div>
 
             <div class="mt-4 overflow-x-auto">
                 <table class="w-full text-left text-sm">
@@ -122,7 +123,10 @@
                             <th class="py-2">Proveedor</th>
                             <th class="py-2">Fecha</th>
                             <th class="py-2">Estado</th>
-                            <th class="py-2">Total</th>
+                            <th class="py-2">Resumen</th>
+                            <th class="py-2">Items</th>
+                            <th class="py-2">Unid.</th>
+                            <th class="py-2">Total (monto)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -132,12 +136,25 @@
                                 <td class="py-2">{{ $o->proveedor?->nombre }}</td>
                                 <td class="py-2">{{ $o->fecha_orden }}</td>
                                 <td class="py-2">{{ $o->estado }}</td>
+                                <td class="py-2 text-gray-700">
+                                    @php
+                                        $detalles = $o->detalles ?? collect();
+                                        $preview = $detalles->take(2)->map(function ($d) {
+                                            $codigo = $d->producto?->codigo ?? ('#'.$d->producto_id);
+                                            return $codigo.' x'.$d->cantidad;
+                                        })->implode(', ');
+                                        $restantes = max(0, $detalles->count() - 2);
+                                    @endphp
+                                    <div>{{ $preview }}@if($restantes > 0) <span class="text-gray-500">(+{{ $restantes }})</span>@endif</div>
+                                </td>
+                                <td class="py-2">{{ (int) ($o->detalles_count ?? 0) }}</td>
+                                <td class="py-2">{{ (int) ($o->unidades_total ?? 0) }}</td>
                                 <td class="py-2">{{ $o->total }}</td>
                             </tr>
                         @endforeach
                         @if ($ordenes->isEmpty())
                             <tr>
-                                <td class="py-3 text-gray-600" colspan="5">Sin órdenes todavía.</td>
+                                <td class="py-3 text-gray-600" colspan="8">Sin órdenes todavía.</td>
                             </tr>
                         @endif
                     </tbody>

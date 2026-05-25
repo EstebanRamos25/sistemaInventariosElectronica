@@ -3,11 +3,14 @@
 namespace App\Livewire;
 
 use App\Models\Categoria;
+use App\Models\Marca;
 use App\Models\Producto;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
@@ -17,11 +20,19 @@ class ProductosPage extends Component
     public ?int $editingId = null;
     public bool $showForm = false;
 
+    #[Url(as: 'marca')]
+    public int|string $marcaFilter = '';
+
+    #[Url(as: 'q')]
+    public string $search = '';
+
+    public string $brandSearch = '';
+
     public int|string $categoria_id = '';
+    public int|string $marca_id = '';
     public string $codigo = '';
     public string $nombre = '';
     public ?string $descripcion = null;
-    public ?string $marca = null;
     public ?string $modelo_tv = null;
     public int|string|null $pulgadas_tv = null;
     public string|int|float|null $voltaje_led = null;
@@ -46,22 +57,63 @@ class ProductosPage extends Component
 
     public function render()
     {
+        $marcaId = is_numeric($this->marcaFilter) ? (int) $this->marcaFilter : null;
+        $term = trim($this->search);
+        $brandTerm = strtoupper(trim($this->brandSearch));
+
         return view('livewire.productos-page', [
             'categorias' => Categoria::query()->orderBy('nombre')->get(),
-            'productos' => Producto::query()->with('categoria')->orderBy('nombre')->get(),
+            'marcasCatalogo' => Marca::query()->orderBy('nombre')->get(),
+            'marcasMenu' => Marca::query()
+                ->when($brandTerm !== '', fn ($q) => $q->where('nombre', 'like', "%{$brandTerm}%"))
+                ->orderBy('nombre')
+                ->get(),
+            'marcaSeleccionada' => $marcaId ? Marca::query()->find($marcaId) : null,
+            'productos' => Producto::query()
+                ->with(['categoria', 'marca'])
+                ->withCount([
+                    'movimientosInventario',
+                    'ventaDetalles',
+                    'ordenCompraDetalles',
+                    'recepcionDetalles',
+                    'alertasReposicion',
+                ])
+                ->when($marcaId, fn ($q) => $q->where('marca_id', $marcaId))
+                ->when($term !== '', function ($q) use ($term) {
+                    $q->where(function ($qq) use ($term) {
+                        $qq->where('codigo', 'like', "%{$term}%")
+                            ->orWhere('nombre', 'like', "%{$term}%")
+                            ->orWhere('modelo_tv', 'like', "%{$term}%");
+                    });
+                })
+                ->orderBy('nombre')
+                ->get(),
         ]);
+    }
+
+    public function setActivo(int $id, bool $activo): void
+    {
+        $p = Producto::query()->findOrFail($id);
+        $p->activo = $activo;
+        $p->save();
+
+        Session::flash('status', $activo ? 'Producto activado.' : 'Producto desactivado.');
+
+        if ($this->editingId === $id && ! $activo) {
+            $this->activo = false;
+        }
     }
 
     public function edit(int $id): void
     {
-        $p = Producto::query()->findOrFail($id);
+        $p = Producto::query()->with('marca')->findOrFail($id);
 
         $this->editingId = $p->id;
         $this->categoria_id = $p->categoria_id;
+        $this->marca_id = $p->marca_id ?? '';
         $this->codigo = $p->codigo;
         $this->nombre = $p->nombre;
         $this->descripcion = $p->descripcion;
-        $this->marca = $p->marca;
         $this->modelo_tv = $p->modelo_tv;
         $this->pulgadas_tv = $p->pulgadas_tv;
         $this->voltaje_led = $p->voltaje_led === null ? null : (string) $p->voltaje_led;
@@ -102,10 +154,10 @@ class ProductosPage extends Component
 
         $data = $this->validate([
             'categoria_id' => ['required', 'integer', Rule::exists('categorias', 'id')],
+            'marca_id' => ['required', 'integer', Rule::exists('marcas', 'id')],
             'codigo' => ['required', 'string', 'max:255', Rule::unique('productos', 'codigo')->ignore($this->editingId)],
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string'],
-            'marca' => ['nullable', 'string', 'max:255'],
             'modelo_tv' => ['nullable', 'string', 'max:255'],
             'pulgadas_tv' => ['nullable', 'integer', 'min:1', 'max:200'],
             'voltaje_led' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
@@ -129,7 +181,7 @@ class ProductosPage extends Component
             $data,
         );
 
-        session()->flash('status', $this->editingId ? 'Producto actualizado.' : 'Producto creado.');
+        Session::flash('status', $this->editingId ? 'Producto actualizado.' : 'Producto creado.');
 
         $this->resetForm();
     }
@@ -137,9 +189,32 @@ class ProductosPage extends Component
     public function delete(int $id): void
     {
         $p = Producto::query()->findOrFail($id);
+
+        $bloqueos = [];
+        if ($p->movimientosInventario()->exists()) {
+            $bloqueos[] = 'movimientos de inventario';
+        }
+        if ($p->ventaDetalles()->exists()) {
+            $bloqueos[] = 'ventas';
+        }
+        if ($p->ordenCompraDetalles()->exists()) {
+            $bloqueos[] = 'órdenes de compra';
+        }
+        if ($p->recepcionDetalles()->exists()) {
+            $bloqueos[] = 'recepciones';
+        }
+        if ($p->alertasReposicion()->exists()) {
+            $bloqueos[] = 'alertas de reposición';
+        }
+
+        if ($bloqueos !== []) {
+            Session::flash('error', 'No se puede eliminar este producto porque tiene '.implode(', ', $bloqueos).'.');
+            return;
+        }
+
         $p->delete();
 
-        session()->flash('status', 'Producto eliminado.');
+        Session::flash('status', 'Producto eliminado.');
 
         if ($this->editingId === $id) {
             $this->resetForm();
@@ -152,10 +227,10 @@ class ProductosPage extends Component
         $this->showForm = false;
 
         $this->categoria_id = '';
+        $this->marca_id = '';
         $this->codigo = '';
         $this->nombre = '';
         $this->descripcion = null;
-        $this->marca = null;
         $this->modelo_tv = null;
         $this->pulgadas_tv = null;
         $this->voltaje_led = null;
@@ -178,7 +253,12 @@ class ProductosPage extends Component
     {
         $parts = [];
 
-        $marca = trim((string) ($this->marca ?? ''));
+        $marca = '';
+        if ($this->marca_id !== '' && is_numeric($this->marca_id)) {
+            $marcaDb = Marca::query()->find((int) $this->marca_id);
+            $marca = $marcaDb ? trim((string) $marcaDb->nombre) : '';
+        }
+
         $modelo = trim((string) ($this->modelo_tv ?? ''));
         $nombre = trim((string) ($this->nombre ?? ''));
 

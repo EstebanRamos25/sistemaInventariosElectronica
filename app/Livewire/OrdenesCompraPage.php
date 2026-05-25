@@ -6,6 +6,7 @@ use App\Models\OrdenCompra;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -37,7 +38,13 @@ class OrdenesCompraPage extends Component
         return view('livewire.ordenes-compra-page', [
             'proveedores' => Proveedor::query()->orderBy('nombre')->get(),
             'productos' => Producto::query()->where('activo', true)->orderBy('nombre')->get(),
-            'ordenes' => OrdenCompra::query()->with('proveedor')->orderByDesc('fecha_orden')->limit(20)->get(),
+            'ordenes' => OrdenCompra::query()
+                ->with(['proveedor', 'detalles.producto'])
+                ->withCount('detalles')
+                ->withSum('detalles as unidades_total', 'cantidad')
+                ->orderByDesc('fecha_orden')
+                ->limit(20)
+                ->get(),
         ]);
     }
 
@@ -81,8 +88,14 @@ class OrdenesCompraPage extends Component
 
         $productosPorId = Producto::query()
             ->whereIn('id', $productoIds)
+            ->where('activo', true)
             ->get(['id', 'unidades_por_empaque'])
             ->keyBy('id');
+
+        if (count($productoIds) !== $productosPorId->count()) {
+            Session::flash('error', 'No se puede crear la orden: hay productos inactivos seleccionados.');
+            return;
+        }
 
         $itemsNormalizados = [];
         $total = 0.0;
@@ -144,7 +157,7 @@ class OrdenesCompraPage extends Component
             $orden->save();
         });
 
-        session()->flash('status', 'Orden de compra creada.');
+        Session::flash('status', 'Orden de compra creada.');
 
         $this->reset(['proveedor_id', 'numero_orden', 'fecha_estimada_llegada', 'observaciones']);
         $this->fecha_orden = now()->toDateString();

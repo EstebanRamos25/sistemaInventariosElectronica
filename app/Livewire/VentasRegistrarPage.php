@@ -7,10 +7,12 @@ use App\Models\Producto;
 use App\Services\Ventas\Exceptions\CajaNoAbiertaException;
 use App\Services\Ventas\Exceptions\StockInsuficienteException;
 use App\Services\Ventas\RegistrarVentaService;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use InvalidArgumentException;
 
 #[Layout('layouts.app')]
 #[Title('Registrar venta')]
@@ -60,7 +62,7 @@ class VentasRegistrarPage extends Component
     {
         $caja = Caja::query()->where('estado', 'abierta')->orderByDesc('fecha_apertura')->first();
         if (! $caja) {
-            session()->flash('error', 'No hay caja abierta.');
+            Session::flash('error', 'No hay caja abierta.');
             return;
         }
 
@@ -85,17 +87,19 @@ class VentasRegistrarPage extends Component
             $this->ultima_venta_numero = $venta->numero_venta;
             $this->ultima_venta_total = (string) $venta->total;
 
-            session()->flash('status', 'Venta registrada.');
+            Session::flash('status', 'Venta registrada.');
 
             $this->descuento = '0.00';
             $this->observaciones = null;
             $this->items = [['producto_id' => '', 'cantidad' => 1]];
         } catch (CajaNoAbiertaException $e) {
-            session()->flash('error', $e->getMessage());
+            Session::flash('error', $e->getMessage());
         } catch (StockInsuficienteException $e) {
-            session()->flash('error', $e->getMessage());
+            Session::flash('error', $e->getMessage());
+        } catch (InvalidArgumentException $e) {
+            Session::flash('error', $e->getMessage());
         } catch (\Throwable $e) {
-            session()->flash('error', 'Error registrando venta.');
+            Session::flash('error', 'Error registrando venta.');
             report($e);
         }
     }

@@ -28,7 +28,7 @@
     <div class="mt-6 rounded border border-gray-200 bg-white p-4">
         <div>
             <label class="block text-sm font-medium">Orden de compra</label>
-            <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="orden_compra_id">
+            <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model.live="orden_compra_id" wire:change="loadOrden">
                 <option value="">-- Seleccionar --</option>
                 @foreach ($ordenes as $o)
                     <option value="{{ $o->id }}">{{ $o->numero_orden }} ({{ $o->estado }})</option>
@@ -74,7 +74,7 @@
                                 <td class="py-2">{{ $item['cantidad_ordenada'] }}</td>
                                 <td class="py-2">
                                     <div class="flex items-center gap-3">
-                                        <input type="number" class="w-32 rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="items.{{ $i }}.cantidad_recibida" />
+                                        <input type="number" class="w-32 rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model.live="items.{{ $i }}.cantidad_recibida" />
                                         @if ($recibir_en_empaques && (int) ($item['unidades_por_empaque'] ?? 0) > 0)
                                             <div class="text-xs text-gray-600">
                                                 = {{ (int) ($item['cantidad_recibida'] ?? 0) * (int) $item['unidades_por_empaque'] }} {{ $item['unidad'] ?? 'unid.' }}
@@ -99,8 +99,16 @@
             </div>
         </div>
 
-        <button class="mt-4 rounded bg-gray-900 px-3 py-2 text-sm text-white" wire:click="registrar" @disabled(! $orden_compra_id)>
+        @php
+            $canRegistrar = (bool) $orden_compra_id && collect($items)->contains(fn ($it) => (int) ($it['cantidad_recibida'] ?? 0) > 0);
+        @endphp
+
+        <button class="mt-4 rounded bg-gray-900 px-3 py-2 text-sm text-white disabled:opacity-50" wire:click="registrar" @disabled(! $canRegistrar)>
             Registrar recepción
         </button>
+
+        @if ($orden_compra_id && ! $canRegistrar)
+            <div class="mt-2 text-xs text-gray-600">Ingresa “Recibido ahora” en al menos un producto para habilitar el registro.</div>
+        @endif
     </div>
 </div>

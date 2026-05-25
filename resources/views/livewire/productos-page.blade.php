@@ -2,13 +2,19 @@
     <div class="flex items-end justify-between gap-4">
         <div>
             <h1 class="text-2xl font-semibold">Productos</h1>
-            <p class="mt-1 text-sm text-gray-600">CRUD básico de productos e inventario.</p>
+            <p class="mt-1 text-sm text-gray-600">Gestión de productos e inventario.</p>
         </div>
 
         <div class="flex items-center gap-2">
             @if (session('status'))
                 <div class="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
                     {{ session('status') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                    {{ session('error') }}
                 </div>
             @endif
 
@@ -21,6 +27,57 @@
                     Nuevo producto
                 </button>
             @endif
+        </div>
+    </div>
+
+    <section class="mt-6 rounded border border-gray-200 bg-white p-4">
+        <div class="flex items-end justify-between gap-4">
+            <div>
+                <h2 class="font-medium">Marcas</h2>
+                <div class="mt-1 text-sm text-gray-600">Menú por logos para navegar rápido.</div>
+            </div>
+
+            <div class="w-full max-w-sm">
+                <label class="block text-sm font-medium">Buscar marca</label>
+                <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Ej: LG, SAMSUNG" wire:model.live="brandSearch" />
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            @foreach ($marcasMenu as $m)
+                <a class="rounded border border-gray-200 bg-white p-3 hover:bg-gray-50" href="{{ route('productos', ['marca' => $m->id, 'q' => $search !== '' ? $search : null]) }}">
+                    <div class="flex items-center gap-3">
+                        @if ($m->logo_path)
+                            <img class="h-10 w-10 rounded border border-gray-200 bg-white object-contain" src="{{ Storage::url($m->logo_path) }}" alt="{{ $m->nombre }}" />
+                        @else
+                            <div class="h-10 w-10 rounded border border-dashed border-gray-300 bg-gray-50"></div>
+                        @endif
+                        <div class="font-medium text-sm">{{ $m->nombre }}</div>
+                    </div>
+                </a>
+            @endforeach
+
+            @if ($marcasMenu->isEmpty())
+                <div class="rounded border border-gray-200 bg-white p-3 text-sm text-gray-600 sm:col-span-3 lg:col-span-6">
+                    Sin marcas que coincidan.
+                </div>
+            @endif
+        </div>
+    </section>
+
+    <div class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div class="lg:col-span-2">
+            <label class="block text-sm font-medium">Buscar producto</label>
+            <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Código, nombre o modelo" wire:model.live="search" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium">Marca seleccionada</label>
+            <div class="mt-1 flex items-center justify-between rounded border border-gray-300 bg-white px-3 py-2 text-sm">
+                <div class="text-gray-800">{{ $marcaSeleccionada?->nombre ?? 'Todas' }}</div>
+                @if ($marcaSeleccionada)
+                    <a class="text-sm text-gray-700 underline" href="{{ route('productos', ['q' => $search !== '' ? $search : null]) }}">Quitar filtro</a>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -66,7 +123,13 @@
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium">Marca</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="marca" />
+                        <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="marca_id">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach ($marcasCatalogo as $m)
+                                <option value="{{ $m->id }}">{{ $m->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('marca_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                     <div>
                         <label class="block text-sm font-medium">Modelo(s) TV (compatibles)</label>
@@ -187,17 +250,27 @@
                             <th class="py-2">P. venta</th>
                             <th class="py-2">Stock</th>
                             <th class="py-2 hidden lg:table-cell">Mín.</th>
-                            <th class="py-2">Activo</th>
+                            <th class="py-2">Estado</th>
                             <th class="py-2"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($productos as $p)
-                            <tr class="border-b border-gray-100">
+                            @php
+                                $canDelete = (
+                                    (int) $p->movimientos_inventario_count === 0 &&
+                                    (int) $p->venta_detalles_count === 0 &&
+                                    (int) $p->orden_compra_detalles_count === 0 &&
+                                    (int) $p->recepcion_detalles_count === 0 &&
+                                    (int) $p->alertas_reposicion_count === 0
+                                );
+                            @endphp
+
+                            <tr class="border-b border-gray-100 {{ $p->activo ? '' : 'opacity-50' }}">
                                 <td class="py-2 font-medium">{{ $p->codigo }}</td>
                                 <td class="py-2">{{ $p->nombre }}</td>
                                 <td class="py-2 hidden lg:table-cell text-gray-700">
-                                    {{ $p->marca }}@if($p->marca && $p->modelo_tv) · @endif{{ $p->modelo_tv }}@if($p->pulgadas_tv) · {{ $p->pulgadas_tv }}&quot;@endif
+                                    {{ $p->marca?->nombre }}@if($p->marca?->nombre && $p->modelo_tv) · @endif{{ $p->modelo_tv }}@if($p->pulgadas_tv) · {{ $p->pulgadas_tv }}&quot;@endif
                                     @if($p->voltaje_led || $p->leds_por_barra)
                                         <span class="text-gray-500">
                                             ·
@@ -219,22 +292,36 @@
                                 <td class="py-2">{{ $p->precio_venta }}</td>
                                 <td class="py-2 {{ (int) $p->stock_actual <= (int) $p->stock_minimo ? 'text-red-700 font-medium' : '' }}">{{ $p->stock_actual }}</td>
                                 <td class="py-2 hidden lg:table-cell">{{ $p->stock_minimo }}</td>
-                                <td class="py-2">{{ $p->activo ? 'Sí' : 'No' }}</td>
+                                <td class="py-2">
+                                    <label class="inline-flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-gray-300"
+                                            @checked($p->activo)
+                                            wire:key="activo-{{ $p->id }}"
+                                            wire:change="setActivo({{ $p->id }}, $event.target.checked)"
+                                        />
+                                        <span class="text-gray-800">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span>
+                                    </label>
+                                </td>
                                 <td class="py-2 text-right whitespace-nowrap">
                                     <button class="rounded border border-gray-300 bg-white px-2 py-1" wire:click="edit({{ $p->id }})">Editar</button>
-                                    <button
-                                        class="ml-2 rounded border border-red-300 bg-white px-2 py-1 text-red-700"
-                                        wire:click="delete({{ $p->id }})"
-                                        wire:confirm="¿Eliminar el producto {{ $p->codigo }} - {{ $p->nombre }}?\nEsta acción no se puede deshacer."
-                                    >
-                                        Eliminar
-                                    </button>
+
+                                    @if ($canDelete)
+                                        <button
+                                            class="ml-2 rounded border border-red-300 bg-white px-2 py-1 text-red-700"
+                                            wire:click="delete({{ $p->id }})"
+                                            wire:confirm="¿Eliminar el producto {{ $p->codigo }} - {{ $p->nombre }}?\nEsta acción no se puede deshacer."
+                                        >
+                                            Eliminar
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
                         @if ($productos->isEmpty())
                             <tr>
-                                <td class="py-3 text-gray-600" colspan="11">Sin productos todavía.</td>
+                                <td class="py-3 text-gray-600" colspan="11">Sin productos para mostrar.</td>
                             </tr>
                         @endif
                     </tbody>

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\OrdenCompra;
 use App\Services\Compras\RegistrarRecepcionService;
+use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -30,6 +31,11 @@ class RecepcionesRegistrarPage extends Component
     }
 
     public function updatedOrdenCompraId(): void
+    {
+        $this->loadOrden();
+    }
+
+    public function loadOrden(): void
     {
         $this->ultima_recepcion_id = null;
         $this->items = [];
@@ -63,10 +69,10 @@ class RecepcionesRegistrarPage extends Component
             ->all();
     }
 
-    public function registrar(RegistrarRecepcionService $service): void
+    public function registrar(): void
     {
         if (! $this->orden_compra_id) {
-            session()->flash('error', 'Selecciona una orden.');
+            Session::flash('error', 'Selecciona una orden.');
             return;
         }
 
@@ -90,11 +96,12 @@ class RecepcionesRegistrarPage extends Component
             ->all();
 
         if ($items === []) {
-            session()->flash('error', 'Ingresa al menos una cantidad recibida.');
+            Session::flash('error', 'Ingresa al menos una cantidad recibida.');
             return;
         }
 
         try {
+            $service = app(RegistrarRecepcionService::class);
             $recepcion = $service->registrar(
                 (int) $this->orden_compra_id,
                 $items,
@@ -102,12 +109,12 @@ class RecepcionesRegistrarPage extends Component
             );
 
             $this->ultima_recepcion_id = $recepcion->id;
-            session()->flash('status', 'Recepción registrada.');
+            Session::flash('status', 'Recepción registrada.');
 
             $this->observaciones = null;
             $this->updatedOrdenCompraId();
         } catch (\Throwable $e) {
-            session()->flash('error', $e->getMessage() ?: 'Error registrando recepción.');
+            Session::flash('error', $e->getMessage() ?: 'Error registrando recepción.');
             report($e);
         }
     }

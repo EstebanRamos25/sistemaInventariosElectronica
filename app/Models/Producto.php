@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\AlertaReposicion;
 use App\Models\Categoria;
+use App\Models\Marca;
 use App\Models\MovimientoInventario;
 use App\Models\OrdenCompraDetalle;
 use App\Models\RecepcionDetalle;
@@ -22,10 +23,10 @@ class Producto extends Model
 
     protected $fillable = [
         'categoria_id',
+        'marca_id',
         'codigo',
         'nombre',
         'descripcion',
-        'marca',
         'modelo_tv',
         'pulgadas_tv',
         'voltaje_led',
@@ -54,6 +55,11 @@ class Producto extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class, 'categoria_id');
+    }
+
+    public function marca(): BelongsTo
+    {
+        return $this->belongsTo(Marca::class, 'marca_id');
     }
 
     public function movimientosInventario(): HasMany
