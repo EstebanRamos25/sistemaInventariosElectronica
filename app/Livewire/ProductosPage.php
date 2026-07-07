@@ -12,11 +12,14 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Productos')]
 class ProductosPage extends Component
 {
+    use WithPagination;
+
     public ?int $editingId = null;
     public bool $showForm = false;
 
@@ -27,6 +30,9 @@ class ProductosPage extends Component
     public string $search = '';
 
     public string $brandSearch = '';
+
+    public int $perPage = 20;
+
 
     public int|string $categoria_id = '';
     public int|string $marca_id = '';
@@ -87,8 +93,23 @@ class ProductosPage extends Component
                     });
                 })
                 ->orderBy('nombre')
-                ->get(),
+                ->paginate($this->perPage),
         ]);
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedMarcaFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
     }
 
     public function setActivo(int $id, bool $activo): void

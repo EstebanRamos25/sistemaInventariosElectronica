@@ -18,6 +18,35 @@
                 </div>
             @endif
 
+            {{-- Botones PDF --}}
+            <div class="flex items-center gap-1.5">
+                {{-- PDF Completo --}}
+                <a
+                    href="{{ route('productos.pdf', array_filter(['marca_id' => is_numeric($marcaFilter) ? $marcaFilter : null, 'q' => $search !== '' ? $search : null])) }}"
+                    target="_blank"
+                    class="inline-flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                    title="Reporte completo en PDF (hoja horizontal)"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {{ is_numeric($marcaFilter) && $marcaFilter ? 'PDF Marca' : 'PDF General' }}
+                </a>
+
+                {{-- PDF Rápido --}}
+                <a
+                    href="{{ route('productos.pdf', array_filter(['marca_id' => is_numeric($marcaFilter) ? $marcaFilter : null, 'q' => $search !== '' ? $search : null, 'tipo' => 'rapido'])) }}"
+                    target="_blank"
+                    class="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    title="Reporte rápido en PDF (hoja vertical, solo código/nombre/stock)"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    PDF Rápido
+                </a>
+            </div>
+
             @if ($showForm)
                 <button class="rounded border border-gray-300 bg-white px-3 py-2 text-sm" type="button" wire:click="cancelEdit">
                     Cerrar formulario
@@ -232,9 +261,55 @@
         </section>
 
         <section class="rounded border border-gray-200 bg-white p-4 {{ $showForm ? 'lg:col-span-2' : 'lg:col-span-3' }}">
-            <div class="flex items-end justify-between gap-4">
-                <h2 class="font-medium">Listado <span class="text-sm text-gray-600">({{ $productos->count() }})</span></h2>
-                <div class="text-sm text-gray-600">Tip: usa “Editar” para abrir el formulario</div>
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+                <h2 class="font-medium">
+                    Listado
+                    <span class="text-sm text-gray-600">({{ $productos->total() }} en total)</span>
+                </h2>
+
+                <div class="flex items-center gap-2">
+                    {{-- Selector de registros por página --}}
+                    <div class="flex items-center gap-1.5">
+                        <label class="text-sm text-gray-600">Mostrar</label>
+                        <select class="rounded border border-gray-300 bg-white px-2 py-1.5 text-sm" wire:model.live="perPage">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span class="text-sm text-gray-600">por página</span>
+                    </div>
+
+                    {{-- Botón PDF Completo --}}
+                    <a
+                        href="{{ route('productos.pdf', array_filter(['marca_id' => is_numeric($marcaFilter) ? $marcaFilter : null, 'q' => $search !== '' ? $search : null])) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                        title="Reporte completo (hoja horizontal)"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        @if(is_numeric($marcaFilter) && $marcaFilter)
+                            PDF — {{ $marcaSeleccionada?->nombre }}
+                        @else
+                            PDF General
+                        @endif
+                    </a>
+
+                    {{-- Botón PDF Rápido --}}
+                    <a
+                        href="{{ route('productos.pdf', array_filter(['marca_id' => is_numeric($marcaFilter) ? $marcaFilter : null, 'q' => $search !== '' ? $search : null, 'tipo' => 'rapido'])) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-1.5 rounded border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                        title="Reporte rápido (hoja vertical, solo código/nombre/stock)"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        PDF Rápido
+                    </a>
+                </div>
             </div>
 
             <div class="mt-4 overflow-x-auto">
@@ -327,6 +402,18 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Paginación --}}
+            @if ($productos->hasPages())
+                <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+                    <div class="text-sm text-gray-600">
+                        Mostrando {{ $productos->firstItem() }}–{{ $productos->lastItem() }} de {{ $productos->total() }} productos
+                    </div>
+                    <div>
+                        {{ $productos->links() }}
+                    </div>
+                </div>
+            @endif
         </section>
     </div>
 </div>

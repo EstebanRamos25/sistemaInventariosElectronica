@@ -52,7 +52,7 @@ MARCA_SHEETS = [
 STOCK_MINIMO_DEFAULT        = 2
 STOCK_IDEAL_DEFAULT         = 10
 TIEMPO_REPOSICION_DEFAULT   = 7
-STOCKS_NEGATIVOS_A_CERO     = True   # True = convertir stocks negativos a 0
+STOCKS_NEGATIVOS_A_CERO     = False  # False = conservar el valor negativo real del Excel
 
 
 def safe_num(value, default=None):
@@ -68,12 +68,87 @@ def safe_num(value, default=None):
 
 
 def parse_pulgadas(desc: str):
-    """Extrae las pulgadas desde el inicio de la descripción. Ej: '32 LG...' → 32"""
-    m = re.match(r"^(\d{2})\s", desc)
+    """
+    Extrae las pulgadas desde la descripción.
+    Soporta múltiples formatos comunes en el inventario:
+
+      - '32 LA ...'            → 32  (pulgadas al inicio con espacio)
+      - '32LK540 ...'          → 32  (pulgadas al inicio pegado a letras)
+      - 'UN32FH4005G ...'      → 32  (Samsung: UN + pulgadas + modelo)
+      - 'KDL-32R425A ...'      → 32  (Sony: KDL- + pulgadas)
+      - 'L49S780BTS ...'       → 49  (DAEWOO: L + pulgadas)
+      - '49 MASTER G ...'      → 49  (pulgadas al inicio con espacio)
+    """
+    # 1. Pulgadas al inicio (con espacio o directamente pegadas a letras)
+    m = re.match(r"^(\d{2})(?=\s|[A-Za-z])", desc)
     if m:
         p = int(m.group(1))
         if 10 <= p <= 100:
             return p
+
+    # 2. Formato Samsung UN: UN{pulgadas}  (ej: UN32FH4005, UN 40 D6500, UN55)
+    m = re.search(r"\bUN\s*(\d{2})\s*(?=\d|[A-Za-z])", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 2b. Formato Samsung QN: QN{pulgadas}  (ej: QN55Q60A, QN60Q60A, QN65Q8)
+    m = re.search(r"\bQN(\d{2})(?=\d|[A-Za-z])", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 3. Formato Sony: KDL-{pulgadas}  (ej: KDL-32R425A, KDL-39R)
+    m = re.search(r"\bKDL[-]?(\d{2})(?=\d|[A-Za-z]|-)", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 4. Formato Daewoo/Toshiba: L{pulgadas}X (ej: L49S780, 43L4700)
+    m = re.search(r"\b(?:L|LD)(\d{2})(?=\d|[A-Za-z])", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 5. Formato Daewoo con guión: 43-DAEWO, 49-DAeWO
+    m = re.search(r"^(\d{2})-", desc)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 6. Número de 2 dígitos seguido de PULG, comilla de pulgadas, o símbolo "
+    m = re.search(r'(\d{2})\s*(?:PULG|"|pulgadas)', desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 7. Formato Sony XBR: XBR-{pulgadas}  (ej: XBR-55W805B)
+    m = re.search(r"\bXBR[-]?(\d{2})(?=\d|[A-Za-z])", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 8. Formato JVC LT-: LT-{pulgadas}  (ej: LT-65 KB608)
+    m = re.search(r"\bLT[-](\d{2})\b", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
+    # 9. KDL con espacio en el número: KDL-32 EX30, KDL - 46 R455
+    m = re.search(r"\bKDL\s*[-]?\s*(\d{2})\b", desc, re.IGNORECASE)
+    if m:
+        p = int(m.group(1))
+        if 10 <= p <= 100:
+            return p
+
     return None
 
 

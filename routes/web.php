@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ProductosPdfController;
 use App\Livewire\AlertasPage;
 use App\Livewire\CajasPage;
 use App\Livewire\CategoriasPage;
@@ -17,6 +18,7 @@ Route::get('/', Dashboard::class)->name('dashboard');
 Route::get('/categorias', CategoriasPage::class)->name('categorias');
 Route::get('/marcas', MarcasPage::class)->name('marcas');
 Route::get('/productos', ProductosPage::class)->name('productos');
+Route::get('/productos/pdf', ProductosPdfController::class)->name('productos.pdf');
 Route::get('/proveedores', ProveedoresPage::class)->name('proveedores');
 
 Route::get('/ordenes-compra', OrdenesCompraPage::class)->name('ordenes_compra');

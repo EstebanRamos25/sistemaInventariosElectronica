@@ -50,10 +50,10 @@ class ImportarProductosExcelSeeder extends Seeder
     // ─── Ajusta estas opciones según tu preferencia ───────────────────────────
 
     /** Poner el código viejo en la descripción en lugar de usarlo como código directo */
-    private const CODIGO_LEGADO_EN_DESCRIPCION = false;
+    private const CODIGO_LEGADO_EN_DESCRIPCION = true;
 
     /** Convertir stocks negativos a 0 */
-    private const STOCKS_NEGATIVOS_A_CERO = true;
+    private const STOCKS_NEGATIVOS_A_CERO = false;
 
     /** Stock mínimo por defecto para todos los productos importados */
     private const STOCK_MINIMO_DEFAULT = 2;
