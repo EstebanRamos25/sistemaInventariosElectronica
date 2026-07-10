@@ -204,41 +204,114 @@
                 </div>
 
                 {{-- ── Precios ─────────────────────────────────────────────── --}}
+                @php
+                    $tasa        = $tasaVigente ? (float) $tasaVigente->tasa : null;
+                    $simb        = $moneda === 'Bs' ? 'Bs' : '$';
+                    $simbolAlt   = $moneda === 'Bs' ? '$' : 'Bs';
+                    // Calcular equivalentes para mostrar junto a cada campo
+                    $convPc  = $tasa ? ($moneda === 'USD'
+                        ? number_format((float)$precio_compra * $tasa, 2)
+                        : number_format((float)$precio_compra / max(0.0001, $tasa), 2)) : null;
+                    $convPv  = $tasa ? ($moneda === 'USD'
+                        ? number_format((float)$precio_venta * $tasa, 2)
+                        : number_format((float)$precio_venta / max(0.0001, $tasa), 2)) : null;
+                    $convPcB = $tasa ? ($moneda === 'USD'
+                        ? number_format((float)$precio_compra_barra * $tasa, 2)
+                        : number_format((float)$precio_compra_barra / max(0.0001, $tasa), 2)) : null;
+                    $convPvB = $tasa ? ($moneda === 'USD'
+                        ? number_format((float)$precio_venta_barra * $tasa, 2)
+                        : number_format((float)$precio_venta_barra / max(0.0001, $tasa), 2)) : null;
+                @endphp
                 <div class="rounded border border-gray-100 bg-gray-50 p-3 space-y-3">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Precios</div>
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Precios</div>
+
+                        {{-- Selector de moneda --}}
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs text-gray-500">Moneda:</span>
+                            <div class="flex rounded border border-gray-300 overflow-hidden text-xs">
+                                <button
+                                    type="button"
+                                    class="px-3 py-1.5 font-medium transition-colors {{ $moneda === 'USD' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}"
+                                    wire:click="$set('moneda', 'USD')"
+                                >$ USD</button>
+                                <button
+                                    type="button"
+                                    class="px-3 py-1.5 font-medium border-l border-gray-300 transition-colors {{ $moneda === 'Bs' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50' }}"
+                                    wire:click="$set('moneda', 'Bs')"
+                                >Bs</button>
+                            </div>
+                            @if ($tasa)
+                                <span class="text-xs text-gray-400">
+                                    Tasa: Bs {{ number_format($tasa, 2) }}/$
+                                </span>
+                            @else
+                                <span class="text-xs text-yellow-600">⚠ Sin tasa configurada</span>
+                            @endif
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {{-- Compra Juego --}}
                         <div>
                             <label class="block text-sm font-medium">Compra — Juego</label>
                             <div class="relative mt-1">
-                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_compra" />
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">{{ $simb }}</span>
+                                <input type="number" step="0.01" min="0"
+                                    class="w-full rounded border border-gray-300 bg-white py-2 pl-7 pr-2 text-sm"
+                                    wire:model.blur="precio_compra" />
                             </div>
+                            @if ($tasa && (float)$precio_compra > 0)
+                                <div class="mt-0.5 text-xs text-gray-500">≈ {{ $simbolAlt }} {{ $convPc }}</div>
+                            @endif
                             @error('precio_compra') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
                         </div>
+
+                        {{-- Venta Juego --}}
                         <div>
                             <label class="block text-sm font-medium">Venta — Juego</label>
                             <div class="relative mt-1">
-                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_venta" />
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">{{ $simb }}</span>
+                                <input type="number" step="0.01" min="0"
+                                    class="w-full rounded border border-gray-300 bg-white py-2 pl-7 pr-2 text-sm"
+                                    wire:model.blur="precio_venta" />
                             </div>
+                            @if ($tasa && (float)$precio_venta > 0)
+                                <div class="mt-0.5 text-xs text-gray-500">≈ {{ $simbolAlt }} {{ $convPv }}</div>
+                            @endif
                             @error('precio_venta') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
                         </div>
+
+                        {{-- Compra Barra --}}
                         <div>
                             <label class="block text-sm font-medium">Compra — Barra</label>
                             <div class="relative mt-1">
-                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_compra_barra" placeholder="0.00" />
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">{{ $simb }}</span>
+                                <input type="number" step="0.01" min="0"
+                                    class="w-full rounded border border-gray-300 bg-white py-2 pl-7 pr-2 text-sm"
+                                    wire:model.blur="precio_compra_barra" placeholder="0.00" />
                             </div>
+                            @if ($tasa && (float)$precio_compra_barra > 0)
+                                <div class="mt-0.5 text-xs text-gray-500">≈ {{ $simbolAlt }} {{ $convPcB }}</div>
+                            @endif
                         </div>
+
+                        {{-- Venta Barra --}}
                         <div>
                             <label class="block text-sm font-medium">Venta — Barra</label>
                             <div class="relative mt-1">
-                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_venta_barra" placeholder="0.00" />
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">{{ $simb }}</span>
+                                <input type="number" step="0.01" min="0"
+                                    class="w-full rounded border border-gray-300 bg-white py-2 pl-7 pr-2 text-sm"
+                                    wire:model.blur="precio_venta_barra" placeholder="0.00" />
                             </div>
+                            @if ($tasa && (float)$precio_venta_barra > 0)
+                                <div class="mt-0.5 text-xs text-gray-500">≈ {{ $simbolAlt }} {{ $convPvB }}</div>
+                            @endif
                         </div>
                     </div>
                 </div>
+
 
                 {{-- ── Stock ───────────────────────────────────────────────── --}}
                 <div class="rounded border border-gray-100 bg-gray-50 p-3 space-y-3">

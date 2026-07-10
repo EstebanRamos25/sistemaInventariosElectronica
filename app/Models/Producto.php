@@ -39,6 +39,7 @@ class Producto extends Model
         'precio_venta',
         'precio_compra_barra',
         'precio_venta_barra',
+        'moneda',
         'stock_actual',
         'stock_barras_sueltas',
         'stock_minimo',
@@ -68,6 +69,42 @@ class Producto extends Model
                 $barrasPorJuego = max(1, (int) $this->unidades_por_empaque);
                 return ((int) $this->stock_actual * $barrasPorJuego)
                     + (int) $this->stock_barras_sueltas;
+            }
+        );
+    }
+
+    /**
+     * Precio de venta del juego expresado en Bs.
+     * Si el producto está en USD, convierte con la tasa vigente.
+     * Si ya está en Bs, lo devuelve tal cual.
+     */
+    protected function precioVentaEnBs(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $precio = (float) $this->precio_venta;
+                if ($this->moneda === 'USD') {
+                    return TasaCambio::convertirUsdABs($precio);
+                }
+                return round($precio, 2);
+            }
+        );
+    }
+
+    /**
+     * Precio de venta del juego expresado en USD.
+     * Si el producto está en Bs, convierte con la tasa vigente.
+     * Si ya está en USD, lo devuelve tal cual.
+     */
+    protected function precioVentaEnUsd(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $precio = (float) $this->precio_venta;
+                if ($this->moneda === 'Bs') {
+                    return TasaCambio::convertirBsAUsd($precio);
+                }
+                return round($precio, 2);
             }
         );
     }

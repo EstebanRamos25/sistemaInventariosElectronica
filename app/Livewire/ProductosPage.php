@@ -5,9 +5,11 @@ namespace App\Livewire;
 use App\Models\Categoria;
 use App\Models\Marca;
 use App\Models\Producto;
+use App\Models\TasaCambio;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -53,6 +55,7 @@ class ProductosPage extends Component
     public string|int|float $precio_venta        = '0.00';
     public string|int|float $precio_compra_barra = '0.00';
     public string|int|float $precio_venta_barra  = '0.00';
+    public string $moneda = 'USD';  // 'USD' | 'Bs'
 
     public int|string $stock_actual         = 0;
     public int|string $stock_barras_sueltas = 0;
@@ -71,13 +74,14 @@ class ProductosPage extends Component
         $brandTerm = strtoupper(trim($this->brandSearch));
 
         return view('livewire.productos-page', [
-            'categorias' => Categoria::query()->orderBy('nombre')->get(),
-            'marcasCatalogo' => Marca::query()->orderBy('nombre')->get(),
-            'marcasMenu' => Marca::query()
+            'categorias'        => Categoria::query()->orderBy('nombre')->get(),
+            'marcasCatalogo'    => Marca::query()->orderBy('nombre')->get(),
+            'marcasMenu'        => Marca::query()
                 ->when($brandTerm !== '', fn ($q) => $q->where('nombre', 'like', "%{$brandTerm}%"))
                 ->orderBy('nombre')
                 ->get(),
             'marcaSeleccionada' => $marcaId ? Marca::query()->find($marcaId) : null,
+            'tasaVigente'       => TasaCambio::vigente(),
             'productos' => Producto::query()
                 ->with(['categoria', 'marca'])
                 ->withCount([
@@ -150,6 +154,7 @@ class ProductosPage extends Component
         $this->precio_venta       = (string) $p->precio_venta;
         $this->precio_compra_barra = (string) $p->precio_compra_barra;
         $this->precio_venta_barra  = (string) $p->precio_venta_barra;
+        $this->moneda              = $p->moneda ?? 'USD';
         $this->stock_actual        = $p->stock_actual;
         $this->stock_barras_sueltas = $p->stock_barras_sueltas;
         $this->stock_minimo = $p->stock_minimo;
@@ -197,6 +202,7 @@ class ProductosPage extends Component
             'precio_venta'          => ['required', 'numeric', 'min:0'],
             'precio_compra_barra'   => ['nullable', 'numeric', 'min:0'],
             'precio_venta_barra'    => ['nullable', 'numeric', 'min:0'],
+            'moneda'                => ['required', 'string', Rule::in(['USD', 'Bs'])],
             'stock_actual'          => ['required', 'integer'],
             'stock_barras_sueltas'  => ['required', 'integer', 'min:0'],
             'stock_minimo'          => ['required', 'integer', 'min:0'],
@@ -273,6 +279,7 @@ class ProductosPage extends Component
         $this->precio_venta       = '0.00';
         $this->precio_compra_barra = '0.00';
         $this->precio_venta_barra  = '0.00';
+        $this->moneda              = 'USD';
         $this->stock_actual        = 0;
         $this->stock_barras_sueltas = 0;
         $this->stock_minimo = 0;

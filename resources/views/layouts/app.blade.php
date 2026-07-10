@@ -27,6 +27,13 @@
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('caja') }}">Caja</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('ventas') }}">Ventas</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('alertas') }}">Alertas de reposición</a>
+
+                <div class="pt-3 pb-1">
+                    <div class="px-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Configuración</div>
+                </div>
+                <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('configuracion.tasa_cambio') }}">
+                    💱 Tasa de Cambio
+                </a>
             </nav>
         </aside>
 

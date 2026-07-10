@@ -10,6 +10,7 @@ use App\Livewire\OrdenesCompraPage;
 use App\Livewire\ProductosPage;
 use App\Livewire\ProveedoresPage;
 use App\Livewire\RecepcionesRegistrarPage;
+use App\Livewire\TasaCambioPage;
 use App\Livewire\VentasRegistrarPage;
 use Illuminate\Support\Facades\Route;
 
@@ -28,3 +29,6 @@ Route::get('/caja', CajasPage::class)->name('caja');
 Route::get('/ventas', VentasRegistrarPage::class)->name('ventas');
 
 Route::get('/alertas', AlertasPage::class)->name('alertas');
+
+// Configuración
+Route::get('/configuracion/tasa-cambio', TasaCambioPage::class)->name('configuracion.tasa_cambio');
