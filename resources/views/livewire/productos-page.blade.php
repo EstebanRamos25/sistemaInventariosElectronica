@@ -114,42 +114,20 @@
         <section class="rounded border border-gray-200 bg-white p-4 {{ $showForm ? '' : 'hidden' }}">
             <h2 class="font-medium">{{ $editingId ? 'Editar' : 'Nuevo' }} producto</h2>
 
-            <form class="mt-4 space-y-3" wire:submit.prevent="save">
-                <div>
-                    <label class="block text-sm font-medium">Categoría</label>
-                    <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="categoria_id">
-                        <option value="">-- Seleccionar --</option>
-                        @foreach ($categorias as $c)
-                            <option value="{{ $c->id }}">{{ $c->nombre }}</option>
-                        @endforeach
-                    </select>
-                    @error('categoria_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                </div>
+            <form class="mt-4 space-y-4" wire:submit.prevent="save">
 
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {{-- ── Categoría + Marca + Código ─────────────────────────── --}}
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <div>
-                        <label class="block text-sm font-medium">Código / SKU</label>
-                        <input
-                            class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
-                            placeholder='Ej: LG-40IN-LM1234-3V-5LED-PK4'
-                            wire:model="codigo"
-                        />
-                        <div class="mt-1 text-xs text-gray-600">Si lo dejas vacío, el sistema sugiere uno con Marca/Modelo/Pulgadas.</div>
-                        @error('codigo') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        <label class="block text-sm font-medium">Categoría</label>
+                        <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="categoria_id">
+                            <option value="">-- Seleccionar --</option>
+                            @foreach ($categorias as $c)
+                                <option value="{{ $c->id }}">{{ $c->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('categoria_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium">Nombre</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="nombre" />
-                        @error('nombre') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium">Descripción</label>
-                    <textarea class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" rows="2" wire:model="descripcion"></textarea>
-                </div>
-
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium">Marca</label>
                         <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="marca_id">
@@ -161,93 +139,158 @@
                         @error('marca_id') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Modelo(s) TV (compatibles)</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Ej: 40LF5650, 40LF5700" wire:model="modelo_tv" />
-                        <div class="mt-1 text-xs text-gray-600">Puedes colocar varios modelos separados por coma.</div>
+                        <label class="block text-sm font-medium">Código / SKU</label>
+                        <input
+                            class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+                            placeholder="Se genera automáticamente"
+                            wire:model="codigo"
+                        />
+                        <div class="mt-1 text-xs text-gray-500">Dejar vacío = sistema genera el código.</div>
+                        @error('codigo') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                {{-- ── Identificación del producto ─────────────────────────── --}}
+                {{-- Nombre + Datos técnicos en el mismo bloque --}}
+                <div class="rounded border border-gray-100 bg-gray-50 p-3 space-y-3">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Identificación del producto</div>
+
                     <div>
-                        <label class="block text-sm font-medium">Pulgadas TV</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="pulgadas_tv" />
-                        @error('pulgadas_tv') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                        <label class="block text-sm font-medium">Nombre <span class="text-gray-400 font-normal">(descripción de fábrica)</span></label>
+                        <input
+                            class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
+                            placeholder="Ej: 32 LA -3B/3V/7-7L"
+                            wire:model="nombre"
+                        />
+                        <div class="mt-1 text-xs text-gray-500">Escribe el nombre o código de fábrica tal como aparece en el inventario.</div>
+                        @error('nombre') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium">Voltaje LED (V)</label>
-                        <input type="number" step="0.01" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="voltaje_led" />
-                        @error('voltaje_led') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+
+                    {{-- Datos técnicos: junto al nombre --}}
+                    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium">Pulgadas TV</label>
+                            <input type="number" min="0" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="32" wire:model="pulgadas_tv" />
+                            @error('pulgadas_tv') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Barras por juego</label>
+                            <input type="number" min="0" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="3" wire:model="unidades_por_empaque" />
+                            <div class="mt-1 text-xs text-gray-500">Barras en una bolsa cerrada</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Voltaje LED (V)</label>
+                            <input type="number" step="0.01" min="0" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="3.0" wire:model="voltaje_led" />
+                            @error('voltaje_led') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">LEDs por barra</label>
+                            <input type="number" min="0" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="7" wire:model="leds_por_barra" />
+                            @error('leds_por_barra') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium">LEDs por barra</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="leds_por_barra" />
-                        @error('leds_por_barra') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Características barra</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="caracteristicas_barra" />
-                        @error('caracteristicas_barra') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium">Modelo(s) TV compatibles</label>
+                            <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Ej: 40LF5650, 40LF5700" wire:model="modelo_tv" />
+                            <div class="mt-1 text-xs text-gray-500">Separados por coma si son varios modelos.</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Descripción / notas</label>
+                            <textarea class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" rows="2" wire:model="descripcion"></textarea>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div>
-                        <label class="block text-sm font-medium">Unidad</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="unidad" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Empaque</label>
-                        <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="empaque" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Unidades por empaque</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="unidades_por_empaque" />
+                {{-- ── Precios ─────────────────────────────────────────────── --}}
+                <div class="rounded border border-gray-100 bg-gray-50 p-3 space-y-3">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Precios</div>
+                    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <div>
+                            <label class="block text-sm font-medium">Compra — Juego</label>
+                            <div class="relative mt-1">
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_compra" />
+                            </div>
+                            @error('precio_compra') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Venta — Juego</label>
+                            <div class="relative mt-1">
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_venta" />
+                            </div>
+                            @error('precio_venta') <div class="mt-1 text-xs text-red-600">{{ $message }}</div> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Compra — Barra</label>
+                            <div class="relative mt-1">
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_compra_barra" placeholder="0.00" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Venta — Barra</label>
+                            <div class="relative mt-1">
+                                <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+                                <input type="number" step="0.01" min="0" class="w-full rounded border border-gray-300 bg-white py-2 pl-6 pr-2 text-sm" wire:model="precio_venta_barra" placeholder="0.00" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                {{-- ── Stock ───────────────────────────────────────────────── --}}
+                <div class="rounded border border-gray-100 bg-gray-50 p-3 space-y-3">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Stock</div>
+
+                    <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+                        <div>
+                            <label class="block text-sm font-medium">
+                                Stock Juegos
+                                <span class="text-xs text-gray-400 font-normal">(bolsas cerradas)</span>
+                            </label>
+                            <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_actual" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">
+                                Stock Barras sueltas
+                                <span class="text-xs text-gray-400 font-normal">(unidades)</span>
+                            </label>
+                            <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_barras_sueltas" />
+                            <div class="mt-1 text-xs text-gray-500">Barras individuales de bolsas ya abiertas.</div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Stock mínimo (alerta)</label>
+                            <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_minimo" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium">Stock ideal</label>
+                            <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_ideal" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium">Tiempo reposición (días)</label>
+                            <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="tiempo_reposicion_dias" />
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ── Otras opciones ──────────────────────────────────────── --}}
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                        <label class="block text-sm font-medium">Precio compra</label>
-                        <input type="number" step="0.01" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="precio_compra" />
-                        @error('precio_compra') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Precio venta</label>
-                        <input type="number" step="0.01" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="precio_venta" />
-                        @error('precio_venta') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div>
-                        <label class="block text-sm font-medium">Stock actual</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_actual" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Stock mínimo</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_minimo" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Stock ideal</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="stock_ideal" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium">Tiempo reposición (días)</label>
-                        <input type="number" class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="tiempo_reposicion_dias" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium">Ubicación</label>
+                        <label class="block text-sm font-medium">Ubicación en tienda</label>
                         <input class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="ubicacion" />
                     </div>
+                    <div class="flex items-end">
+                        <label class="flex items-center gap-2 text-sm pb-2">
+                            <input type="checkbox" class="rounded border-gray-300" wire:model="activo" />
+                            Producto activo
+                        </label>
+                    </div>
                 </div>
-
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" class="rounded border-gray-300" wire:model="activo" />
-                    Activo
-                </label>
 
                 <div class="flex gap-2">
                     <button class="rounded bg-gray-900 px-3 py-2 text-sm text-white" type="submit">
@@ -259,6 +302,7 @@
                 </div>
             </form>
         </section>
+
 
         <section class="rounded border border-gray-200 bg-white p-4 {{ $showForm ? 'lg:col-span-2' : 'lg:col-span-3' }}">
             <div class="flex items-center justify-between gap-4 flex-wrap">

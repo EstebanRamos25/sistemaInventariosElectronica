@@ -66,7 +66,8 @@
                         step="0.01"
                         min="0"
                         class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
-                        wire:model.live="descuento"
+                        wire:model.blur="descuento"
+                        placeholder="0.00"
                     />
                     @error('descuento') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                 </div>
@@ -113,8 +114,13 @@
                             $cantidadItem  = max(0, (int) ($item['cantidad'] ?? 0));
                             $subtotalItem  = $precioItem * $cantidadItem;
                             $hayProducto   = $item['producto_id'] !== '' && $item['producto_id'] !== null;
+                            $tipoVentaItem = $item['tipo_venta'] ?? 'juego';
+                            $stockJuegos   = (int) ($item['stock_juegos'] ?? 0);
+                            $stockBarras   = (int) ($item['stock_barras'] ?? 0);
+                            $barrasPorJuego = (int) ($item['barras_por_juego'] ?? 0);
                         @endphp
                         <div class="py-3" wire:key="item-{{ $i }}">
+                            {{-- Fila 1: Producto + Tipo de venta --}}
                             <div class="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-start">
 
                                 {{-- Buscador de producto (combobox) --}}
@@ -150,10 +156,10 @@
                                                                     <span class="font-medium text-gray-900">{{ $prod['codigo'] }}</span>
                                                                     <span class="ml-2 text-gray-600">{{ $prod['nombre'] }}</span>
                                                                 </div>
-                                                                <div class="ml-3 flex-shrink-0 text-right">
-                                                                    <div class="text-xs font-semibold text-gray-800">${{ number_format((float)$prod['precio_venta'], 2) }}</div>
-                                                                    <div class="text-xs {{ $prod['stock_actual'] > 0 ? 'text-green-600' : 'text-red-600' }}">
-                                                                        Stock: {{ $prod['stock_actual'] }}
+                                                                <div class="ml-3 flex-shrink-0 text-right text-xs">
+                                                                    <div class="font-semibold text-gray-800">${{ number_format((float)$prod['precio_venta'], 2) }} juego</div>
+                                                                    <div class="{{ $prod['stock_actual'] > 0 ? 'text-green-600' : 'text-red-500' }}">
+                                                                        {{ $prod['stock_actual'] }} juegos · {{ $prod['stock_barras_sueltas'] ?? 0 }} barras
                                                                     </div>
                                                                 </div>
                                                             </button>
@@ -173,11 +179,58 @@
                                     @enderror
                                 </div>
 
-                                {{-- Precio unitario (editable) --}}
+                                {{-- Tipo de venta: Juego / Barra --}}
                                 <div class="md:col-span-2">
-                                    <label class="block text-xs font-medium text-gray-600 md:hidden">Precio unit. ($)</label>
+                                    <label class="block text-xs font-medium text-gray-600">Tipo</label>
+                                    <div class="mt-1 flex rounded border border-gray-300 overflow-hidden text-sm">
+                                        <button
+                                            type="button"
+                                            class="flex-1 py-2 text-center transition-colors {{ $tipoVentaItem === 'juego' ? 'bg-gray-900 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}"
+                                            wire:click="$set('items.{{ $i }}.tipo_venta', 'juego')"
+                                        >🛍 Juego</button>
+                                        <button
+                                            type="button"
+                                            class="flex-1 py-2 text-center border-l border-gray-300 transition-colors {{ $tipoVentaItem === 'barra' ? 'bg-blue-600 text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50' }}"
+                                            wire:click="$set('items.{{ $i }}.tipo_venta', 'barra')"
+                                        >📦 Barra</button>
+                                    </div>
+                                    @error('items.'.$i.'.tipo_venta')
+                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                {{-- Stock disponible contextual --}}
+                                @if ($hayProducto)
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-medium text-gray-600">Disponible</label>
+                                    <div class="mt-1 rounded border border-gray-100 bg-gray-50 px-2 py-2 text-xs">
+                                        @if ($tipoVentaItem === 'juego')
+                                            <div class="{{ $stockJuegos > 0 ? 'text-green-700 font-semibold' : 'text-red-600 font-semibold' }}">
+                                                {{ $stockJuegos }} juego{{ $stockJuegos !== 1 ? 's' : '' }}
+                                            </div>
+                                            @if ($barrasPorJuego > 0)
+                                                <div class="text-gray-500">{{ $barrasPorJuego }} barras/juego</div>
+                                            @endif
+                                        @else
+                                            <div class="{{ $stockBarras > 0 ? 'text-blue-700 font-semibold' : 'text-orange-600 font-semibold' }}">
+                                                {{ $stockBarras }} barra{{ $stockBarras !== 1 ? 's' : '' }} sueltas
+                                            </div>
+                                            @if ($stockJuegos > 0 && $barrasPorJuego > 0)
+                                                <div class="text-gray-500">+{{ $stockJuegos }}×{{ $barrasPorJuego }} en juegos</div>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                                @else
+                                <div class="md:col-span-2"></div>
+                                @endif
+
+                                {{-- Precio unitario (editable) --}}
+                                <div class="{{ $hayProducto ? 'md:col-span-1' : 'md:col-span-3' }}">
+                                    <label class="block text-xs font-medium text-gray-600 md:hidden">Precio ($)</label>
                                     <div class="relative mt-1">
                                         <span class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+
                                         <input
                                             type="number"
                                             step="0.01"

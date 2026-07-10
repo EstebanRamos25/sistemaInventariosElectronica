@@ -19,8 +19,8 @@ use InvalidArgumentException;
 #[Title('Registrar venta')]
 class VentasRegistrarPage extends Component
 {
-    public string $tipo_pago = 'efectivo';
-    public string|int|float $descuento = '0.00';
+    public string $tipo_pago   = 'efectivo';
+    public string $descuento   = '0.00';   // siempre string para compatibilidad Livewire
     public ?string $observaciones = null;
 
     /**
@@ -58,12 +58,18 @@ class VentasRegistrarPage extends Component
     private function blankItem(): array
     {
         return [
-            'producto_id'     => '',
-            'cantidad'        => 1,
-            'precio_unitario' => '0.00',
-            'search'          => '',
-            'open'            => false,
-            'nombre_display'  => '',
+            'producto_id'      => '',
+            'cantidad'         => 1,
+            'tipo_venta'       => 'juego',   // 'juego' | 'barra'
+            'precio_unitario'  => '0.00',
+            'precio_juego'     => '0.00',    // precio de referencia juego
+            'precio_barra'     => '0.00',    // precio de referencia barra
+            'stock_juegos'     => 0,         // para mostrar disponibilidad
+            'stock_barras'     => 0,         // para mostrar disponibilidad
+            'barras_por_juego' => 0,
+            'search'           => '',
+            'open'             => false,
+            'nombre_display'   => '',
         ];
     }
 
@@ -90,28 +96,48 @@ class VentasRegistrarPage extends Component
             })
             ->orderBy('nombre')
             ->limit(10)
-            ->get(['id', 'codigo', 'nombre', 'stock_actual', 'precio_venta'])
+            ->get(['id', 'codigo', 'nombre', 'stock_actual', 'stock_barras_sueltas', 'precio_venta', 'precio_venta_barra', 'unidades_por_empaque'])
             ->toArray();
     }
 
     /**
-     * Se llama cuando el usuario escribe en el buscador de un ítem.
-     * Abre el dropdown y borra la selección previa si cambia el texto.
+     * Cuando el usuario escribe en el campo descuento, normalizar el valor.
+     * Si queda vacío, lo volvemos a '0.00' para que los computed no fallen.
+     */
+    public function updatedDescuento(mixed $value): void
+    {
+        if ($value === '' || $value === null) {
+            $this->descuento = '';
+        }
+    }
+
+    /**
+     * Cuando el usuario escribe en el buscador de un ítem o cambia el tipo de venta,
+     * ajustar la selección/precio automáticamente.
      */
     public function updatedItems(mixed $value, string $key): void
     {
-        // $key tiene formato "0.search", "1.cantidad", etc.
         [$index, $field] = array_pad(explode('.', $key, 2), 2, '');
         $index = (int) $index;
 
         if ($field === 'search') {
-            // Si el usuario escribe de nuevo, limpiar selección previa
             if ($this->items[$index]['producto_id'] !== '') {
-                $this->items[$index]['producto_id']      = '';
-                $this->items[$index]['precio_unitario']  = '0.00';
-                $this->items[$index]['nombre_display']   = '';
+                $this->items[$index]['producto_id']     = '';
+                $this->items[$index]['precio_unitario'] = '0.00';
+                $this->items[$index]['precio_juego']    = '0.00';
+                $this->items[$index]['precio_barra']    = '0.00';
+                $this->items[$index]['stock_juegos']    = 0;
+                $this->items[$index]['stock_barras']    = 0;
+                $this->items[$index]['nombre_display']  = '';
             }
             $this->items[$index]['open'] = trim((string) $value) !== '';
+        }
+
+        if ($field === 'tipo_venta' && $this->items[$index]['producto_id'] !== '') {
+            // Auto-cambiar el precio al cambiar el tipo
+            $this->items[$index]['precio_unitario'] = $value === 'barra'
+                ? $this->items[$index]['precio_barra']
+                : $this->items[$index]['precio_juego'];
         }
     }
 
@@ -123,17 +149,31 @@ class VentasRegistrarPage extends Component
         $producto = Producto::query()
             ->where('id', $productoId)
             ->where('activo', true)
-            ->first(['id', 'codigo', 'nombre', 'stock_actual', 'precio_venta']);
+            ->first(['id', 'codigo', 'nombre', 'stock_actual', 'stock_barras_sueltas',
+                     'precio_venta', 'precio_venta_barra', 'unidades_por_empaque']);
 
         if (! $producto) {
             return;
         }
 
-        $this->items[$index]['producto_id']     = $producto->id;
-        $this->items[$index]['precio_unitario'] = (float) $producto->precio_venta;
-        $this->items[$index]['nombre_display']  = "{$producto->codigo} — {$producto->nombre}";
-        $this->items[$index]['search']          = "{$producto->codigo} — {$producto->nombre}";
-        $this->items[$index]['open']            = false;
+        $tipoVenta     = $this->items[$index]['tipo_venta'] ?? 'juego';
+        $precioJuego   = (float) $producto->precio_venta;
+        $precioBarra   = (float) $producto->precio_venta_barra > 0
+            ? (float) $producto->precio_venta_barra
+            : round($precioJuego / max(1, (int) $producto->unidades_por_empaque), 2);
+
+        $this->items[$index]['producto_id']      = $producto->id;
+        $this->items[$index]['precio_juego']     = number_format($precioJuego, 2, '.', '');
+        $this->items[$index]['precio_barra']     = number_format($precioBarra, 2, '.', '');
+        $this->items[$index]['precio_unitario']  = $tipoVenta === 'barra'
+            ? number_format($precioBarra, 2, '.', '')
+            : number_format($precioJuego, 2, '.', '');
+        $this->items[$index]['stock_juegos']     = (int) $producto->stock_actual;
+        $this->items[$index]['stock_barras']     = (int) $producto->stock_barras_sueltas;
+        $this->items[$index]['barras_por_juego'] = (int) $producto->unidades_por_empaque;
+        $this->items[$index]['nombre_display']   = "{$producto->codigo} — {$producto->nombre}";
+        $this->items[$index]['search']           = "{$producto->codigo} — {$producto->nombre}";
+        $this->items[$index]['open']             = false;
     }
 
     /**
@@ -212,14 +252,20 @@ class VentasRegistrarPage extends Component
             return;
         }
 
+        // Normalizar descuento: si quedó vacío, usar 0
+        if ($this->descuento === '' || $this->descuento === null) {
+            $this->descuento = '0.00';
+        }
+
         $data = $this->validate([
-            'tipo_pago'             => ['required', 'string', Rule::in(['efectivo', 'qr', 'transferencia'])],
-            'descuento'             => ['required', 'numeric', 'min:0'],
-            'observaciones'         => ['nullable', 'string'],
-            'items'                 => ['required', 'array', 'min:1'],
-            'items.*.producto_id'   => ['required', 'integer', Rule::exists('productos', 'id')],
-            'items.*.cantidad'      => ['required', 'integer', 'min:1'],
-            'items.*.precio_unitario' => ['required', 'numeric', 'min:0'],
+            'tipo_pago'                => ['required', 'string', Rule::in(['efectivo', 'qr', 'transferencia'])],
+            'descuento'                => ['required', 'numeric', 'min:0'],
+            'observaciones'            => ['nullable', 'string'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.producto_id'      => ['required', 'integer', Rule::exists('productos', 'id')],
+            'items.*.tipo_venta'       => ['required', 'string', Rule::in(['juego', 'barra'])],
+            'items.*.cantidad'         => ['required', 'integer', 'min:1'],
+            'items.*.precio_unitario'  => ['required', 'numeric', 'min:0'],
         ]);
 
         try {

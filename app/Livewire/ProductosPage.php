@@ -49,12 +49,15 @@ class ProductosPage extends Component
     public ?string $empaque = null;
     public int|string|null $unidades_por_empaque = null;
 
-    public string|int|float $precio_compra = '0.00';
-    public string|int|float $precio_venta = '0.00';
+    public string|int|float $precio_compra      = '0.00';
+    public string|int|float $precio_venta        = '0.00';
+    public string|int|float $precio_compra_barra = '0.00';
+    public string|int|float $precio_venta_barra  = '0.00';
 
-    public int|string $stock_actual = 0;
-    public int|string $stock_minimo = 0;
-    public int|string $stock_ideal = 0;
+    public int|string $stock_actual         = 0;
+    public int|string $stock_barras_sueltas = 0;
+    public int|string $stock_minimo         = 0;
+    public int|string $stock_ideal          = 0;
 
     public int|string|null $tiempo_reposicion_dias = null;
     public ?string $ubicacion = null;
@@ -143,9 +146,12 @@ class ProductosPage extends Component
         $this->unidad = $p->unidad ?? 'pieza';
         $this->empaque = $p->empaque;
         $this->unidades_por_empaque = $p->unidades_por_empaque;
-        $this->precio_compra = (string) $p->precio_compra;
-        $this->precio_venta = (string) $p->precio_venta;
-        $this->stock_actual = $p->stock_actual;
+        $this->precio_compra      = (string) $p->precio_compra;
+        $this->precio_venta       = (string) $p->precio_venta;
+        $this->precio_compra_barra = (string) $p->precio_compra_barra;
+        $this->precio_venta_barra  = (string) $p->precio_venta_barra;
+        $this->stock_actual        = $p->stock_actual;
+        $this->stock_barras_sueltas = $p->stock_barras_sueltas;
         $this->stock_minimo = $p->stock_minimo;
         $this->stock_ideal = $p->stock_ideal;
         $this->tiempo_reposicion_dias = $p->tiempo_reposicion_dias;
@@ -174,27 +180,30 @@ class ProductosPage extends Component
         }
 
         $data = $this->validate([
-            'categoria_id' => ['required', 'integer', Rule::exists('categorias', 'id')],
-            'marca_id' => ['required', 'integer', Rule::exists('marcas', 'id')],
-            'codigo' => ['required', 'string', 'max:255', Rule::unique('productos', 'codigo')->ignore($this->editingId)],
-            'nombre' => ['required', 'string', 'max:255'],
-            'descripcion' => ['nullable', 'string'],
-            'modelo_tv' => ['nullable', 'string', 'max:255'],
-            'pulgadas_tv' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'voltaje_led' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
-            'leds_por_barra' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'categoria_id'          => ['required', 'integer', Rule::exists('categorias', 'id')],
+            'marca_id'              => ['required', 'integer', Rule::exists('marcas', 'id')],
+            'codigo'                => ['required', 'string', 'max:255', Rule::unique('productos', 'codigo')->ignore($this->editingId)],
+            'nombre'                => ['required', 'string', 'max:255'],
+            'descripcion'           => ['nullable', 'string'],
+            'modelo_tv'             => ['nullable', 'string', 'max:255'],
+            'pulgadas_tv'           => ['nullable', 'integer', 'min:1', 'max:200'],
+            'voltaje_led'           => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'leds_por_barra'        => ['nullable', 'integer', 'min:1', 'max:500'],
             'caracteristicas_barra' => ['nullable', 'string', 'max:255'],
-            'unidad' => ['required', 'string', 'max:20'],
-            'empaque' => ['nullable', 'string', 'max:30'],
-            'unidades_por_empaque' => ['nullable', 'integer', 'min:1'],
-            'precio_compra' => ['required', 'numeric', 'min:0'],
-            'precio_venta' => ['required', 'numeric', 'min:0'],
-            'stock_actual' => ['required', 'integer', 'min:0'],
-            'stock_minimo' => ['required', 'integer', 'min:0'],
-            'stock_ideal' => ['required', 'integer', 'min:0'],
+            'unidad'                => ['required', 'string', 'max:20'],
+            'empaque'               => ['nullable', 'string', 'max:30'],
+            'unidades_por_empaque'  => ['nullable', 'integer', 'min:1'],
+            'precio_compra'         => ['required', 'numeric', 'min:0'],
+            'precio_venta'          => ['required', 'numeric', 'min:0'],
+            'precio_compra_barra'   => ['nullable', 'numeric', 'min:0'],
+            'precio_venta_barra'    => ['nullable', 'numeric', 'min:0'],
+            'stock_actual'          => ['required', 'integer'],
+            'stock_barras_sueltas'  => ['required', 'integer', 'min:0'],
+            'stock_minimo'          => ['required', 'integer', 'min:0'],
+            'stock_ideal'           => ['required', 'integer', 'min:0'],
             'tiempo_reposicion_dias' => ['nullable', 'integer', 'min:0'],
-            'ubicacion' => ['nullable', 'string', 'max:255'],
-            'activo' => ['boolean'],
+            'ubicacion'             => ['nullable', 'string', 'max:255'],
+            'activo'                => ['boolean'],
         ]);
 
         Producto::query()->updateOrCreate(
@@ -260,9 +269,12 @@ class ProductosPage extends Component
         $this->unidad = 'pieza';
         $this->empaque = null;
         $this->unidades_por_empaque = null;
-        $this->precio_compra = '0.00';
-        $this->precio_venta = '0.00';
-        $this->stock_actual = 0;
+        $this->precio_compra      = '0.00';
+        $this->precio_venta       = '0.00';
+        $this->precio_compra_barra = '0.00';
+        $this->precio_venta_barra  = '0.00';
+        $this->stock_actual        = 0;
+        $this->stock_barras_sueltas = 0;
         $this->stock_minimo = 0;
         $this->stock_ideal = 0;
         $this->tiempo_reposicion_dias = null;

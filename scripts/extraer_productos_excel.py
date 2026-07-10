@@ -225,12 +225,15 @@ def extract_products_from_sheet(ws, marca_nombre: str) -> tuple[list, list]:
             })
             continue
 
-        # Columnas: COD | DESC | STOCK_J | STOCK_B | PRECIO_V_J | PRECIO_C_J | BARRAS | ...
-        stock_j  = safe_num(actual[2] if len(actual) > 2 else None, 0)
-        stock_b  = safe_num(actual[3] if len(actual) > 3 else None, 0)
-        precio_v = safe_num(actual[4] if len(actual) > 4 else None, 0)
-        precio_c = safe_num(actual[5] if len(actual) > 5 else None, 0)
-        barras_j = safe_num(actual[6] if len(actual) > 6 else None)
+        # Columnas: COD | DESC | STOCK_J | STOCK_B | PRECIO_V_J | PRECIO_C_J | BARRAS | (X) | PRECIO_V_B | PRECIO_C_B
+        stock_j      = safe_num(actual[2] if len(actual) > 2 else None, 0)
+        stock_b      = safe_num(actual[3] if len(actual) > 3 else None, 0)
+        precio_v     = safe_num(actual[4] if len(actual) > 4 else None, 0)
+        precio_c     = safe_num(actual[5] if len(actual) > 5 else None, 0)
+        barras_j     = safe_num(actual[6] if len(actual) > 6 else None)
+        # columna 7 = vacía/índice, columna 8 = precio venta barra, 9 = precio compra barra
+        precio_v_b   = safe_num(actual[8] if len(actual) > 8 else None, 0)
+        precio_c_b   = safe_num(actual[9] if len(actual) > 9 else None, 0)
 
         # Normalizar stocks
         stock_j = max(0, int(stock_j)) if (STOCKS_NEGATIVOS_A_CERO and stock_j < 0) else int(stock_j or 0)
@@ -255,6 +258,8 @@ def extract_products_from_sheet(ws, marca_nombre: str) -> tuple[list, list]:
             "unidades_por_empaque": barras_val,
             "precio_compra":        round(precio_c, 2) if precio_c else 0.0,
             "precio_venta":         round(precio_v, 2) if precio_v else 0.0,
+            "precio_compra_barra":  round(precio_c_b, 2) if precio_c_b else 0.0,
+            "precio_venta_barra":   round(precio_v_b, 2) if precio_v_b else 0.0,
             "stock_actual":         stock_j,
             "stock_barras":         stock_b,
             "stock_minimo":         STOCK_MINIMO_DEFAULT,

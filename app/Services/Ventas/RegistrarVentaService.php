@@ -62,52 +62,104 @@ class RegistrarVentaService
                     throw new InvalidArgumentException("Producto inactivo: {$producto->codigo}");
                 }
 
-                $cantidad = (int) $item['cantidad'];
+                $cantidad   = (int) $item['cantidad'];
+                $tipoVenta  = $item['tipo_venta'] ?? 'juego';
+
                 if ($cantidad <= 0) {
                     throw new InvalidArgumentException('La cantidad debe ser mayor a 0.');
                 }
 
-                $stockAnterior = (int) $producto->stock_actual;
-                if ($stockAnterior < $cantidad) {
-                    throw new StockInsuficienteException("Stock insuficiente para {$producto->codigo}. Disponible: {$stockAnterior}, requerido: {$cantidad}.");
-                }
+                // ── Descuento de stock según tipo de venta ──────────────────
+                if ($tipoVenta === 'barra') {
+                    // Venta de barras sueltas
+                    $stockBarras = (int) $producto->stock_barras_sueltas;
+                    $stockJuegos = (int) $producto->stock_actual;
 
-                $stockNuevo = $stockAnterior - $cantidad;
+                    // Si no hay suficientes barras sueltas, intentar abrir un juego
+                    if ($stockBarras < $cantidad) {
+                        $barrasPorJuego = max(1, (int) $producto->unidades_por_empaque);
+
+                        // Calcular cuántas barras faltan
+                        $barrasFaltantes = $cantidad - $stockBarras;
+                        $juegosNecesarios = (int) ceil($barrasFaltantes / $barrasPorJuego);
+
+                        if ($stockJuegos < $juegosNecesarios) {
+                            $totalBarras = ($stockJuegos * $barrasPorJuego) + $stockBarras;
+                            throw new StockInsuficienteException(
+                                "Stock insuficiente de barras para {$producto->codigo}. " .
+                                "Disponible: {$stockBarras} barras sueltas + {$stockJuegos} juegos ({$totalBarras} barras en total), requerido: {$cantidad}."
+                            );
+                        }
+
+                        // Abrir juegos necesarios
+                        $barrasGeneradas = $juegosNecesarios * $barrasPorJuego;
+                        $producto->stock_actual = $stockJuegos - $juegosNecesarios;
+                        $stockBarras += $barrasGeneradas;
+                    }
+
+                    $stockBarrasNuevo = $stockBarras - $cantidad;
+                    $producto->stock_barras_sueltas = $stockBarrasNuevo;
+
+                    $stockAnterior = (int) $producto->getRawOriginal('stock_barras_sueltas');
+                    $stockNuevo    = $stockBarrasNuevo;
+                    $motivoMovimiento = 'venta_barra';
+
+                    // Precio: usar precio_venta_barra si está definido
+                    $precioDefault = (float) $producto->precio_venta_barra > 0
+                        ? $this->toDecimalString($producto->precio_venta_barra)
+                        : $this->toDecimalString($producto->precio_venta);
+
+                } else {
+                    // Venta de juego completo (bolsa cerrada)
+                    $stockAnterior = (int) $producto->stock_actual;
+
+                    if ($stockAnterior < $cantidad) {
+                        throw new StockInsuficienteException(
+                            "Stock insuficiente de juegos para {$producto->codigo}. " .
+                            "Disponible: {$stockAnterior}, requerido: {$cantidad}."
+                        );
+                    }
+
+                    $stockNuevo = $stockAnterior - $cantidad;
+                    $producto->stock_actual = $stockNuevo;
+                    $motivoMovimiento = 'venta';
+                    $precioDefault = $this->toDecimalString($producto->precio_venta);
+                }
 
                 $precioUnitario = array_key_exists('precio_unitario', $item)
                     ? $this->toDecimalString($item['precio_unitario'])
-                    : $this->toDecimalString($producto->precio_venta);
+                    : $precioDefault;
 
                 $lineSubtotal = $this->mul($precioUnitario, $cantidad);
                 $subtotal = $this->add($subtotal, $lineSubtotal);
 
                 $detalleRows[] = [
-                    'producto_id' => $producto->id,
-                    'cantidad' => $cantidad,
+                    'producto_id'    => $producto->id,
+                    'tipo_venta'     => $tipoVenta,
+                    'cantidad'       => $cantidad,
                     'precio_unitario' => $precioUnitario,
-                    'subtotal' => $lineSubtotal,
+                    'subtotal'       => $lineSubtotal,
                 ];
 
                 $movimientos[] = [
-                    'producto_id' => $producto->id,
-                    'tipo' => 'salida',
-                    'motivo' => 'venta',
-                    'cantidad' => $cantidad,
+                    'producto_id'    => $producto->id,
+                    'tipo'           => 'salida',
+                    'motivo'         => $motivoMovimiento,
+                    'cantidad'       => $cantidad,
                     'stock_anterior' => $stockAnterior,
-                    'stock_nuevo' => $stockNuevo,
-                    'observaciones' => null,
+                    'stock_nuevo'    => $stockNuevo,
+                    'observaciones'  => $tipoVenta === 'barra' ? "Venta de {$cantidad} barra(s) suelta(s)" : null,
                     'fecha_movimiento' => $fechaVenta,
                 ];
 
-                $producto->stock_actual = $stockNuevo;
                 $producto->save();
 
-                if ($stockNuevo <= (int) $producto->stock_minimo) {
+                if ((int) $producto->stock_actual <= (int) $producto->stock_minimo) {
                     $alertasPendientes[] = [
                         'producto_id' => $producto->id,
-                        'stock_actual' => $stockNuevo,
+                        'stock_actual' => (int) $producto->stock_actual,
                         'stock_minimo' => (int) $producto->stock_minimo,
-                        'estado' => 'pendiente',
+                        'estado'      => 'pendiente',
                         'fecha_alerta' => $fechaVenta,
                     ];
                 }
@@ -166,17 +218,21 @@ class RegistrarVentaService
 
         foreach ($items as $item) {
             $productoId = (int) Arr::get($item, 'producto_id', 0);
-            $cantidad = (int) Arr::get($item, 'cantidad', 0);
+            $cantidad   = (int) Arr::get($item, 'cantidad', 0);
+            $tipoVenta  = Arr::get($item, 'tipo_venta', 'juego');
 
             if ($productoId <= 0 || $cantidad <= 0) {
                 continue;
             }
 
-            $key = (string) $productoId;
+            // Agrupar por producto_id + tipo_venta (juego y barra son stocks distintos)
+            $key = $productoId . '|' . $tipoVenta;
+
             if (! isset($agrupados[$key])) {
                 $agrupados[$key] = [
                     'producto_id' => $productoId,
-                    'cantidad' => 0,
+                    'tipo_venta'  => $tipoVenta,
+                    'cantidad'    => 0,
                 ];
 
                 if (array_key_exists('precio_unitario', $item)) {

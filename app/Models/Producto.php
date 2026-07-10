@@ -37,7 +37,10 @@ class Producto extends Model
         'unidades_por_empaque',
         'precio_compra',
         'precio_venta',
+        'precio_compra_barra',
+        'precio_venta_barra',
         'stock_actual',
+        'stock_barras_sueltas',
         'stock_minimo',
         'stock_ideal',
         'tiempo_reposicion_dias',
@@ -46,11 +49,28 @@ class Producto extends Model
     ];
 
     protected $casts = [
-        'precio_compra' => 'decimal:2',
-        'precio_venta' => 'decimal:2',
-        'voltaje_led' => 'decimal:2',
-        'activo' => 'boolean',
+        'precio_compra'       => 'decimal:2',
+        'precio_venta'        => 'decimal:2',
+        'precio_compra_barra' => 'decimal:2',
+        'precio_venta_barra'  => 'decimal:2',
+        'voltaje_led'         => 'decimal:2',
+        'activo'              => 'boolean',
     ];
+
+    /**
+     * Total de barras individuales disponibles:
+     * (stock_actual × barras_por_juego) + stock_barras_sueltas
+     */
+    protected function totalBarrasDisponibles(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $barrasPorJuego = max(1, (int) $this->unidades_por_empaque);
+                return ((int) $this->stock_actual * $barrasPorJuego)
+                    + (int) $this->stock_barras_sueltas;
+            }
+        );
+    }
 
     public function categoria(): BelongsTo
     {
