@@ -1,23 +1,27 @@
-<x-slot name="header">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-bold text-gray-900">Tasa de Cambio</h1>
-            <p class="mt-0.5 text-sm text-gray-500">Historial del valor del dólar (USD → Bs)</p>
-        </div>
-        <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 transition-colors"
-            wire:click="nuevaTasa"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Registrar tasa
-        </button>
-    </div>
-</x-slot>
-
 <div class="space-y-6">
+
+    {{-- ── Encabezado de página ──────────────────────────────────────────── --}}
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-gray-900">💱 Tasa de Cambio</h1>
+            <p class="mt-0.5 text-sm text-gray-500">
+                Historial del valor del dólar (USD → Bs) · Cada registro queda guardado para rastrear costos y ganancias
+            </p>
+        </div>
+        @if (!$showForm)
+            <button
+                type="button"
+                id="btn-registrar-tasa"
+                class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 transition-colors"
+                wire:click="nuevaTasa"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Registrar nueva tasa
+            </button>
+        @endif
+    </div>
 
     {{-- Flash messages --}}
     @if (session('status'))
@@ -72,8 +76,18 @@
             </div>
         </div>
     @else
-        <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-5 text-sm text-yellow-800">
-            ⚠ No hay tasa de cambio registrada aún. Registra la primera tasa para activar las conversiones de moneda en el sistema.
+        {{-- Sin tasas: aviso claro con botón de acción integrado --}}
+        <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl">⚠</span>
+                <div>
+                    <p class="font-semibold text-yellow-800">No hay tasa de cambio registrada</p>
+                    <p class="mt-1 text-sm text-yellow-700">
+                        Sin una tasa configurada, el sistema no puede mostrar conversiones USD ↔ Bs en el formulario de productos.
+                        Registra la primera tasa usando el botón de arriba.
+                    </p>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -81,7 +95,7 @@
     @if ($showForm)
         <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-sm font-semibold text-gray-800">
-                {{ $editingId ? 'Editar tasa' : 'Registrar nueva tasa' }}
+                {{ $editingId ? '✏️ Editar tasa' : '➕ Registrar nueva tasa' }}
             </h2>
 
             <form wire:submit.prevent="save" class="space-y-4">
@@ -162,7 +176,7 @@
                         type="submit"
                         class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors"
                     >
-                        {{ $editingId ? 'Actualizar' : 'Guardar tasa' }}
+                        {{ $editingId ? 'Actualizar tasa' : 'Guardar tasa' }}
                     </button>
                     <button
                         type="button"
@@ -178,8 +192,25 @@
 
     {{-- ── Historial de tasas ────────────────────────────────────────────── --}}
     <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-gray-100 px-5 py-3">
-            <h2 class="text-sm font-semibold text-gray-800">Historial de tasas</h2>
+        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3 gap-3 flex-wrap">
+            <div>
+                <h2 class="text-sm font-semibold text-gray-800">Historial de tasas</h2>
+                <p class="text-xs text-gray-400 mt-0.5">
+                    Cada registro permite saber a qué tasa se realizaron las compras o ventas de ese día
+                </p>
+            </div>
+            @if (!$showForm)
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    wire:click="nuevaTasa"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Nueva tasa
+                </button>
+            @endif
         </div>
 
         <div class="overflow-x-auto">
@@ -235,7 +266,7 @@
                                         type="button"
                                         class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 transition-colors"
                                         wire:click="eliminar({{ $registro->id }})"
-                                        wire:confirm="¿Eliminar esta tasa del historial?"
+                                        wire:confirm="¿Eliminar esta tasa del historial? Esta acción no se puede deshacer."
                                     >
                                         Eliminar
                                     </button>
@@ -245,7 +276,20 @@
                     @empty
                         <tr>
                             <td colspan="7" class="px-5 py-10 text-center text-sm text-gray-400">
-                                No hay tasas registradas aún.
+                                <div class="flex flex-col items-center gap-2">
+                                    <span class="text-3xl">📋</span>
+                                    <span>No hay tasas registradas aún.</span>
+                                    <button
+                                        type="button"
+                                        class="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 transition-colors"
+                                        wire:click="nuevaTasa"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Registrar primera tasa
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
