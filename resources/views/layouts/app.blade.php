@@ -22,7 +22,7 @@
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('marcas') }}">Marcas</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('productos') }}">Productos</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('proveedores') }}">Proveedores</a>
-                <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('ordenes_compra') }}">Compras / Órdenes</a>
+                <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('ordenes_compra') }}">Órdenes de Cotización</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('recepciones') }}">Recepciones</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('caja') }}">Caja</a>
                 <a class="block rounded px-3 py-2 hover:bg-gray-100" href="{{ route('ventas') }}">Ventas</a>
