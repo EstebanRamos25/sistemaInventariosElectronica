@@ -8,7 +8,7 @@ use App\Models\Producto;
 use App\Models\TasaCambio;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
+
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -74,15 +74,17 @@ class ProductosPage extends Component
         $brandTerm = strtoupper(trim($this->brandSearch));
 
         return view('livewire.productos-page', [
-            'categorias'        => Categoria::query()->orderBy('nombre')->get(),
-            'marcasCatalogo'    => Marca::query()->orderBy('nombre')->get(),
-            'marcasMenu'        => Marca::query()
+            'categorias'         => Categoria::query()->orderBy('nombre')->get(),
+            'marcasCatalogo'     => Marca::query()->orderBy('nombre')->get(),
+            'marcasMenu'         => Marca::query()
                 ->when($brandTerm !== '', fn ($q) => $q->where('nombre', 'like', "%{$brandTerm}%"))
                 ->orderBy('nombre')
                 ->get(),
-            'marcaSeleccionada' => $marcaId ? Marca::query()->find($marcaId) : null,
-            'tasaVigente'       => TasaCambio::vigente(),
-            'productos' => Producto::query()
+            'marcaSeleccionada'  => $marcaId ? Marca::query()->find($marcaId) : null,
+            'tasaVigente'        => TasaCambio::vigente(),
+            // Cuando hay filtro de marca → agrupamos por pulgadas (y el blade lo sabe)
+            'agruparPorPulgadas' => $marcaId !== null,
+            'productos'          => Producto::query()
                 ->with(['categoria', 'marca'])
                 ->withCount([
                     'movimientosInventario',
@@ -99,7 +101,15 @@ class ProductosPage extends Component
                             ->orWhere('modelo_tv', 'like', "%{$term}%");
                     });
                 })
-                ->orderBy('nombre')
+                // Con marca seleccionada → pulgadas ASC (nulls al final), luego nombre
+                // Sin filtro → más recientes primero
+                ->when($marcaId, function ($q) {
+                    $q->orderByRaw('CASE WHEN pulgadas_tv IS NULL THEN 1 ELSE 0 END ASC')
+                      ->orderBy('pulgadas_tv', 'asc')
+                      ->orderBy('nombre', 'asc');
+                }, function ($q) {
+                    $q->orderBy('id', 'desc');
+                })
                 ->paginate($this->perPage),
         ]);
     }
@@ -293,54 +303,46 @@ class ProductosPage extends Component
     {
         $parts = [];
 
-        $marca = '';
+        // ── 1. Prefijo de marca: primeras 3-4 letras en mayúsculas ──────────
         if ($this->marca_id !== '' && is_numeric($this->marca_id)) {
             $marcaDb = Marca::query()->find((int) $this->marca_id);
-            $marca = $marcaDb ? trim((string) $marcaDb->nombre) : '';
+            if ($marcaDb) {
+                $nombreMarca = trim((string) $marcaDb->nombre);
+                // Tomar solo letras/números, sin espacios ni caracteres especiales
+                $solo = preg_replace('/[^A-Za-z0-9]/', '', $nombreMarca);
+                // Máximo 4 caracteres (3 si la marca ya tiene ≤ 3 letras)
+                $prefijo = strtoupper(substr($solo, 0, min(4, strlen($solo))));
+                if ($prefijo !== '') {
+                    $parts[] = $prefijo;
+                }
+            }
         }
 
-        $modelo = trim((string) ($this->modelo_tv ?? ''));
-        $nombre = trim((string) ($this->nombre ?? ''));
-
-        if ($marca !== '') {
-            $parts[] = $marca;
-        }
-
+        // ── 2. Pulgadas ──────────────────────────────────────────────────────
         $pulgadas = is_numeric($this->pulgadas_tv) ? (int) $this->pulgadas_tv : null;
         if ($pulgadas !== null && $pulgadas > 0) {
-            $parts[] = $pulgadas.'IN';
+            $parts[] = (string) $pulgadas;
         }
 
-        if ($modelo !== '') {
-            $parts[] = $modelo;
+        // ── 3. LEDs por barra ────────────────────────────────────────────────
+        $leds = is_numeric($this->leds_por_barra) ? (int) $this->leds_por_barra : null;
+        if ($leds !== null && $leds > 0) {
+            $parts[] = (string) $leds;
         }
 
-        $voltaje = is_numeric($this->voltaje_led) ? (float) $this->voltaje_led : null;
-        if ($voltaje !== null && $voltaje > 0) {
-            $voltStr = rtrim(rtrim(number_format($voltaje, 2, '.', ''), '0'), '.');
-            $parts[] = $voltStr.'V';
-        }
-
-        $ledsPorBarra = is_numeric($this->leds_por_barra) ? (int) $this->leds_por_barra : null;
-        if ($ledsPorBarra !== null && $ledsPorBarra > 0) {
-            $parts[] = $ledsPorBarra.'LED';
-        }
-
-        $unidadesPorEmpaque = is_numeric($this->unidades_por_empaque) ? (int) $this->unidades_por_empaque : null;
-        if ($unidadesPorEmpaque !== null && $unidadesPorEmpaque > 0) {
-            $parts[] = 'PK'.$unidadesPorEmpaque;
-        }
-
+        // Fallback si no hay ningún dato
         if ($parts === []) {
-            $parts[] = $nombre !== '' ? $nombre : 'PROD';
+            $nombre = trim((string) ($this->nombre ?? ''));
+            $parts[] = $nombre !== '' ? strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nombre), 0, 8)) : 'PROD';
         }
 
-        $base = Str::upper(Str::slug(implode('-', $parts), '-'));
-        $base = substr($base, 0, 60);
-        $base = $base !== '' ? $base : 'PROD';
+        $base      = implode('-', $parts);
+        $base      = $base !== '' ? $base : 'PROD';
+        $base      = substr($base, 0, 40);
 
+        // Verificar unicidad; añadir sufijo numérico si ya existe
         $candidate = $base;
-        for ($i = 1; $i <= 99; $i++) {
+        for ($i = 2; $i <= 99; $i++) {
             $exists = Producto::query()
                 ->where('codigo', $candidate)
                 ->when($this->editingId, fn ($q) => $q->where('id', '!=', $this->editingId))
@@ -350,9 +352,9 @@ class ProductosPage extends Component
                 return $candidate;
             }
 
-            $candidate = $base.'-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT);
+            $candidate = $base . '-' . str_pad((string) $i, 2, '0', STR_PAD_LEFT);
         }
 
-        return $base.'-'.Str::upper(Str::random(6));
+        return $base . '-' . strtoupper(substr(md5(uniqid()), 0, 4));
     }
 }

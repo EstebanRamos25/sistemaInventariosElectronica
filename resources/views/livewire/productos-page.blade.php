@@ -447,6 +447,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                    @php $pulgadasActual = '__INICIO__'; @endphp
                         @foreach ($productos as $p)
                             @php
                                 $canDelete = (
@@ -456,7 +457,23 @@
                                     (int) $p->recepcion_detalles_count === 0 &&
                                     (int) $p->alertas_reposicion_count === 0
                                 );
+                                $grupoPulgadas = $p->pulgadas_tv ? (int) $p->pulgadas_tv : null;
+                                $grupoKey      = $grupoPulgadas ?? 'sin';
                             @endphp
+
+                            {{-- Separador de grupo por pulgadas (solo cuando hay marca seleccionada) --}}
+                            @if ($agruparPorPulgadas && $grupoKey !== $pulgadasActual)
+                                @php $pulgadasActual = $grupoKey; @endphp
+                                <tr>
+                                    <td colspan="11" class="bg-gray-100 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 border-t-2 border-gray-300">
+                                        @if ($grupoPulgadas)
+                                            📺 {{ $grupoPulgadas }}&quot; pulgadas
+                                        @else
+                                            📦 Sin pulgadas especificadas
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endif
 
                             <tr class="border-b border-gray-100 {{ $p->activo ? '' : 'opacity-50' }}">
                                 <td class="py-2 font-medium">{{ $p->codigo }}</td>
