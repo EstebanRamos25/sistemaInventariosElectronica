@@ -140,12 +140,23 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium">Código / SKU</label>
-                        <input
-                            class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm"
-                            placeholder="Se genera automáticamente"
-                            wire:model="codigo"
-                        />
-                        <div class="mt-1 text-xs text-gray-500">Dejar vacío = sistema genera el código.</div>
+                        <div class="mt-1 flex gap-1.5">
+                            <input
+                                class="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm font-mono"
+                                placeholder="Se genera automáticamente"
+                                wire:model="codigo"
+                            />
+                            {{-- Botón regenerar: útil al editar para reflejar pulgadas/leds actualizados --}}
+                            <button
+                                type="button"
+                                title="Regenerar código según marca, pulgadas y LEDs actuales"
+                                class="shrink-0 rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                                wire:click="regenerarCodigo"
+                            >🔄</button>
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500">
+                            Dejar vacío = se genera solo al guardar · 🔄 regenera según los datos actuales del formulario
+                        </div>
                         @error('codigo') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
                     </div>
                 </div>

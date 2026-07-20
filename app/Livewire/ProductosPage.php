@@ -187,6 +187,12 @@ class ProductosPage extends Component
         $this->resetForm();
     }
 
+    /** Fuerza la regeneración del código según los datos actuales del formulario. */
+    public function regenerarCodigo(): void
+    {
+        $this->codigo = $this->sugerirCodigo();
+    }
+
     public function save(): void
     {
         $this->codigo = trim($this->codigo);
@@ -318,16 +324,16 @@ class ProductosPage extends Component
             }
         }
 
-        // ── 2. Pulgadas ──────────────────────────────────────────────────────
+        // ── 2. Pulgadas (con símbolo '') ─────────────────────────────────────
         $pulgadas = is_numeric($this->pulgadas_tv) ? (int) $this->pulgadas_tv : null;
         if ($pulgadas !== null && $pulgadas > 0) {
-            $parts[] = (string) $pulgadas;
+            $parts[] = $pulgadas . "''";   // Ej: 32''
         }
 
-        // ── 3. LEDs por barra ────────────────────────────────────────────────
+        // ── 3. LEDs por barra (con sufijo LED) ───────────────────────────────
         $leds = is_numeric($this->leds_por_barra) ? (int) $this->leds_por_barra : null;
         if ($leds !== null && $leds > 0) {
-            $parts[] = (string) $leds;
+            $parts[] = $leds . 'LED';      // Ej: 108LED
         }
 
         // Fallback si no hay ningún dato
