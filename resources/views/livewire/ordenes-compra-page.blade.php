@@ -198,7 +198,7 @@
                                             type="number"
                                             min="1"
                                             class="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-center focus:border-blue-500 focus:outline-none"
-                                            wire:model.blur="items.{{ $i }}.cantidad_juegos"
+                                            wire:model.live.debounce.400ms="items.{{ $i }}.cantidad_juegos"
                                         />
                                         @error('items.'.$i.'.cantidad_juegos')
                                             <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
@@ -215,7 +215,7 @@
                                                 step="0.01"
                                                 min="0"
                                                 class="w-full rounded-lg border border-gray-300 bg-white py-2 pl-5 pr-2 text-sm text-right focus:border-blue-500 focus:outline-none"
-                                                wire:model.blur="items.{{ $i }}.precio_por_juego"
+                                                wire:model.live.debounce.400ms="items.{{ $i }}.precio_por_juego"
                                             />
                                         </div>
                                         @error('items.'.$i.'.precio_por_juego')

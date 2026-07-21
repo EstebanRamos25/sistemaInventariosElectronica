@@ -72,8 +72,13 @@ class OrdenesCompraPage extends Component
      * Livewire 3 lifecycle: se dispara al cambiar cualquier campo de $items.
      * $name tendrá forma "0.search_term", "1.precio_por_juego", etc.
      */
-    public function updatedItems(mixed $value, string $name): void
+    public function updatedItems(mixed $value, mixed $name): void
     {
+        // Livewire puede llamar con $name=null cuando el array completo se reemplaza
+        if (! is_string($name) || $name === '') {
+            return;
+        }
+
         [$index, $field] = array_pad(explode('.', $name, 2), 2, '');
 
         if ($field === 'search_term') {

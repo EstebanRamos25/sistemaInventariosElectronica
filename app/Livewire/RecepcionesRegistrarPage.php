@@ -3,32 +3,65 @@
 namespace App\Livewire;
 
 use App\Models\OrdenCompra;
+use App\Models\Recepcion;
 use App\Services\Compras\RegistrarRecepcionService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Registrar recepción')]
+#[Title('Recepciones')]
 class RecepcionesRegistrarPage extends Component
 {
+    // ── Formulario ───────────────────────────────────────────────────────────
+
     public int|string $orden_compra_id = '';
-    public ?string $observaciones = null;
+    public string     $fecha_recepcion;
+    public ?string    $observaciones   = null;
 
-    public bool $recibir_en_empaques = false;
-
-    /** @var array<int, array{producto_id:int, codigo:string, nombre:string, unidad:?string, empaque:?string, unidades_por_empaque:?int, cantidad_ordenada:int, cantidad_recibida:int}> */
+    /**
+     * Ítems cargados de la orden. Cada uno:
+     * [
+     *   'producto_id'      => int,
+     *   'codigo'           => string,
+     *   'nombre'           => string,
+     *   'piezas_por_juego' => int|null,   // unidades_por_empaque del producto
+     *   'cantidad_ordenada_juegos' => int, // juegos/paquetes en la orden
+     *   'juegos_recibidos' => string,     // cuántos juegos llegan ahora
+     * ]
+     */
     public array $items = [];
 
     public ?int $ultima_recepcion_id = null;
 
+    // ────────────────────────────────────────────────────────────────────────
+
+    public function mount(): void
+    {
+        $this->fecha_recepcion = now()->toDateString();
+    }
+
     public function render()
     {
         return view('livewire.recepciones-registrar-page', [
-            'ordenes' => OrdenCompra::query()->orderByDesc('fecha_orden')->limit(50)->get(),
+            // Solo órdenes pendientes o parcialmente recibidas
+            'ordenes'    => OrdenCompra::query()
+                ->with('proveedor')
+                ->whereIn('estado', ['pendiente', 'parcial'])
+                ->orderByDesc('fecha_orden')
+                ->get(),
+            'historial'  => Recepcion::query()
+                ->with(['ordenCompra.proveedor', 'detalles.producto'])
+                ->orderByDesc('fecha_recepcion')
+                ->orderByDesc('id')
+                ->limit(30)
+                ->get(),
         ]);
     }
+
+    // ── Cargar detalle de la orden seleccionada ──────────────────────────────
 
     public function updatedOrdenCompraId(): void
     {
@@ -38,7 +71,7 @@ class RecepcionesRegistrarPage extends Component
     public function loadOrden(): void
     {
         $this->ultima_recepcion_id = null;
-        $this->items = [];
+        $this->items               = [];
 
         if (! $this->orden_compra_id) {
             return;
@@ -52,70 +85,114 @@ class RecepcionesRegistrarPage extends Component
             return;
         }
 
-        $this->items = $orden->detalles
-            ->map(function ($d) {
-                return [
-                    'producto_id' => (int) $d->producto_id,
-                    'codigo' => (string) $d->producto?->codigo,
-                    'nombre' => (string) $d->producto?->nombre,
-                    'unidad' => $d->producto?->unidad,
-                    'empaque' => $d->producto?->empaque,
-                    'unidades_por_empaque' => $d->producto?->unidades_por_empaque,
-                    'cantidad_ordenada' => (int) $d->cantidad,
-                    'cantidad_recibida' => 0,
-                ];
-            })
-            ->values()
-            ->all();
+        $this->items = $orden->detalles->map(function ($d) {
+            // La cantidad guardada en orden_compra_detalles es en UNIDADES
+            // Recalculamos a juegos usando piezas_por_juego del producto
+            $piezasPorJuego    = (int) ($d->producto?->unidades_por_empaque ?? 0);
+            $cantidadUnidades  = (int) $d->cantidad;
+
+            // Si tenemos piezas_por_juego, convertimos. Si no, asumimos 1 juego = 1 unidad
+            $cantidadJuegosOrdenada = $piezasPorJuego > 0
+                ? (int) ceil($cantidadUnidades / $piezasPorJuego)
+                : $cantidadUnidades;
+
+            return [
+                'producto_id'               => (int) $d->producto_id,
+                'codigo'                    => (string) $d->producto?->codigo,
+                'nombre'                    => (string) $d->producto?->nombre,
+                'piezas_por_juego'          => $piezasPorJuego ?: null,
+                'cantidad_ordenada_juegos'  => $cantidadJuegosOrdenada,
+                'juegos_recibidos'          => '',
+            ];
+        })->values()->all();
     }
+
+    // ── Registrar la recepción ────────────────────────────────────────────────
 
     public function registrar(): void
     {
         if (! $this->orden_compra_id) {
-            Session::flash('error', 'Selecciona una orden.');
+            Session::flash('error', 'Selecciona una orden de cotización.');
             return;
         }
 
-        $items = collect($this->items)
-            ->filter(fn ($i) => (int) ($i['cantidad_recibida'] ?? 0) > 0)
-            ->map(function ($i) {
-                $cantidadIngresada = (int) $i['cantidad_recibida'];
-                $unidadesPorEmpaque = (int) ($i['unidades_por_empaque'] ?? 0);
+        // Construir ítems en UNIDADES para el service (que espera unidades)
+        $itemsParaService = [];
 
-                $cantidadUnidades = $cantidadIngresada;
-                if ($this->recibir_en_empaques && $unidadesPorEmpaque > 0) {
-                    $cantidadUnidades = $cantidadIngresada * $unidadesPorEmpaque;
-                }
+        foreach ($this->items as $item) {
+            $juegosRecibidos = (int) ($item['juegos_recibidos'] ?? 0);
+            if ($juegosRecibidos <= 0) {
+                continue;
+            }
 
-                return [
-                    'producto_id' => (int) $i['producto_id'],
-                    'cantidad_recibida' => $cantidadUnidades,
-                ];
-            })
-            ->values()
-            ->all();
+            $piezasPorJuego = (int) ($item['piezas_por_juego'] ?? 0);
+            // Si no hay piezas_por_juego, cada juego cuenta como 1 unidad
+            $unidades = $piezasPorJuego > 0
+                ? $juegosRecibidos * $piezasPorJuego
+                : $juegosRecibidos;
 
-        if ($items === []) {
-            Session::flash('error', 'Ingresa al menos una cantidad recibida.');
+            $itemsParaService[] = [
+                'producto_id'      => (int) $item['producto_id'],
+                'cantidad_recibida'=> $unidades,
+            ];
+        }
+
+        if ($itemsParaService === []) {
+            Session::flash('error', 'Ingresa la cantidad de juegos recibidos en al menos un producto.');
             return;
         }
 
         try {
-            $service = app(RegistrarRecepcionService::class);
-            $recepcion = $service->registrar(
+            $service    = app(RegistrarRecepcionService::class);
+            $recepcion  = $service->registrar(
                 (int) $this->orden_compra_id,
-                $items,
+                $itemsParaService,
                 $this->observaciones,
+                Carbon::parse($this->fecha_recepcion),
             );
 
-            $this->ultima_recepcion_id = $recepcion->id;
-            Session::flash('status', 'Recepción registrada.');
+            // Marcar la orden como recibida/parcial
+            $this->actualizarEstadoOrden((int) $this->orden_compra_id);
 
-            $this->observaciones = null;
-            $this->updatedOrdenCompraId();
+            $this->ultima_recepcion_id = $recepcion->id;
+            Session::flash('status', "Recepción #{$recepcion->id} registrada. Stock de juegos actualizado.");
+
+            // Reset formulario
+            $this->reset(['orden_compra_id', 'observaciones', 'items']);
+            $this->fecha_recepcion = now()->toDateString();
+
         } catch (\Throwable $e) {
-            Session::flash('error', $e->getMessage() ?: 'Error registrando recepción.');
+            Session::flash('error', $e->getMessage() ?: 'Error al registrar la recepción.');
             report($e);
         }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private function actualizarEstadoOrden(int $ordenId): void
+    {
+        $orden = OrdenCompra::query()->find($ordenId);
+        if (! $orden) {
+            return;
+        }
+
+        // Contamos lo recibido vs lo ordenado por producto
+        $totalOrdenado = \App\Models\OrdenCompraDetalle::query()
+            ->where('orden_compra_id', $ordenId)
+            ->selectRaw('SUM(cantidad) as total')
+            ->value('total') ?? 0;
+
+        $totalRecibido = \DB::table('recepcion_detalles')
+            ->join('recepciones', 'recepciones.id', '=', 'recepcion_detalles.recepcion_id')
+            ->where('recepciones.orden_compra_id', $ordenId)
+            ->sum('recepcion_detalles.cantidad_recibida');
+
+        if ($totalRecibido >= $totalOrdenado) {
+            $orden->estado = 'recibida';
+        } else {
+            $orden->estado = 'parcial';
+        }
+
+        $orden->save();
     }
 }
