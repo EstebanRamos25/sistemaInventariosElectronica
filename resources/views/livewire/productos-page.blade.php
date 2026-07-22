@@ -447,12 +447,11 @@
                             <th class="py-2">Código</th>
                             <th class="py-2">Nombre</th>
                             <th class="py-2 hidden lg:table-cell">Marca/Modelo</th>
-                            <th class="py-2">Categoría</th>
-                            <th class="py-2 hidden xl:table-cell">Ubicación</th>
+                            <th class="py-2 hidden md:table-cell">Categoría</th>
                             <th class="py-2 hidden lg:table-cell">P. compra</th>
                             <th class="py-2">P. venta</th>
-                            <th class="py-2">Stock</th>
-                            <th class="py-2 hidden lg:table-cell">Mín.</th>
+                            <th class="py-2" title="Juegos/paquetes cerrados en inventario">Stock juegos</th>
+                            <th class="py-2 hidden sm:table-cell" title="Barras LED sueltas (paquetes abiertos)">Barras sueltas</th>
                             <th class="py-2">Estado</th>
                             <th class="py-2"></th>
                         </tr>
@@ -476,7 +475,7 @@
                             @if ($agruparPorPulgadas && $grupoKey !== $pulgadasActual)
                                 @php $pulgadasActual = $grupoKey; @endphp
                                 <tr>
-                                    <td colspan="11" class="bg-gray-100 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 border-t-2 border-gray-300">
+                                    <td colspan="10" class="bg-gray-100 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-gray-600 border-t-2 border-gray-300">
                                         @if ($grupoPulgadas)
                                             📺 {{ $grupoPulgadas }}&quot; pulgadas
                                         @else
@@ -506,12 +505,22 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="py-2">{{ $p->categoria?->nombre }}</td>
-                                <td class="py-2 hidden xl:table-cell text-gray-700">{{ $p->ubicacion }}</td>
+                                <td class="py-2 hidden md:table-cell">{{ $p->categoria?->nombre }}</td>
                                 <td class="py-2 hidden lg:table-cell">{{ $p->precio_compra }}</td>
                                 <td class="py-2">{{ $p->precio_venta }}</td>
-                                <td class="py-2 {{ (int) $p->stock_actual <= (int) $p->stock_minimo ? 'text-red-700 font-medium' : '' }}">{{ $p->stock_actual }}</td>
-                                <td class="py-2 hidden lg:table-cell">{{ $p->stock_minimo }}</td>
+                                <td class="py-2 font-medium {{ (int) $p->stock_actual <= (int) $p->stock_minimo ? 'text-red-700' : 'text-gray-800' }}">
+                                    {{ $p->stock_actual }}
+                                </td>
+                                <td class="py-2 hidden sm:table-cell">
+                                    @php $barras = (int) $p->stock_barras_sueltas; @endphp
+                                    @if ($barras > 0)
+                                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                                            {{ $barras }}
+                                        </span>
+                                    @else
+                                        <span class="text-gray-300">—</span>
+                                    @endif
+                                </td>
                                 <td class="py-2">
                                     <label class="inline-flex items-center gap-2 text-sm">
                                         <input
@@ -541,7 +550,7 @@
                         @endforeach
                         @if ($productos->isEmpty())
                             <tr>
-                                <td class="py-3 text-gray-600" colspan="11">Sin productos para mostrar.</td>
+                                <td class="py-3 text-gray-600" colspan="10">Sin productos para mostrar.</td>
                             </tr>
                         @endif
                     </tbody>
