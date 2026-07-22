@@ -89,7 +89,7 @@
                                     <th class="py-2 px-3 text-center">Piezas/juego</th>
                                     <th class="py-2 px-3 text-center">Juegos ordenados</th>
                                     <th class="py-2 px-3 text-center">Juegos recibidos ahora</th>
-                                    <th class="py-2 px-3 text-right">Unidades totales</th>
+                                    <th class="py-2 px-3 text-right">Impacto en stock</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
@@ -97,7 +97,8 @@
                                     @php
                                         $juegosRec     = (int) ($item['juegos_recibidos'] ?? 0);
                                         $piezas        = (int) ($item['piezas_por_juego'] ?? 0);
-                                        $unidadesTot   = $piezas > 0 ? $juegosRec * $piezas : $juegosRec;
+                                        // Nota: stock_actual almacena JUEGOS, no unidades
+                                        // El impacto en stock es directamente: +juegosRecibidos
                                     @endphp
                                     <tr class="hover:bg-gray-50 transition-colors" wire:key="rec-item-{{ $i }}">
                                         <td class="py-2.5 px-3">
@@ -131,10 +132,8 @@
                                         <td class="py-2.5 px-3 text-right">
                                             @if ($juegosRec > 0)
                                                 <span class="font-medium text-green-700">
-                                                    {{ $unidadesTot }}
-                                                    <span class="text-xs font-normal text-gray-400">
-                                                        @if ($piezas > 0) ud. @else juego(s) @endif
-                                                    </span>
+                                                    +{{ $juegosRec }}
+                                                    <span class="text-xs font-normal text-gray-400">juego(s)</span>
                                                 </span>
                                             @else
                                                 <span class="text-gray-300">—</span>

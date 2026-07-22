@@ -125,15 +125,11 @@ class RecepcionesRegistrarPage extends Component
                 continue;
             }
 
-            $piezasPorJuego = (int) ($item['piezas_por_juego'] ?? 0);
-            // Si no hay piezas_por_juego, cada juego cuenta como 1 unidad
-            $unidades = $piezasPorJuego > 0
-                ? $juegosRecibidos * $piezasPorJuego
-                : $juegosRecibidos;
-
+            // stock_actual = juegos (bolsas cerradas)
+            // → pasamos juegos directamente, NO convertimos a unidades
             $itemsParaService[] = [
-                'producto_id'      => (int) $item['producto_id'],
-                'cantidad_recibida'=> $unidades,
+                'producto_id'       => (int) $item['producto_id'],
+                'cantidad_recibida' => $juegosRecibidos,
             ];
         }
 

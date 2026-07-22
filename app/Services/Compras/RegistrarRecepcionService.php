@@ -148,28 +148,51 @@ class RegistrarRecepcionService
         return array_values($agrupados);
     }
 
+    /**
+     * Compara lo ordenado (en unidades, como está guardado en orden_compra_detalles)
+     * contra lo recibido (en juegos, como está guardado en recepcion_detalles).
+     *
+     * La conversión unidades → juegos se hace dividiendo por unidades_por_empaque
+     * del producto. Si el producto no tiene unidades_por_empaque, se asume 1 unidad = 1 juego.
+     */
     private function ordenEstaCompletamenteRecibida(int $ordenCompraId): bool
     {
-        $ordenado = OrdenCompraDetalle::query()
+        // Cargamos lo ordenado con piezas_por_juego del producto
+        $detallesOrden = OrdenCompraDetalle::query()
             ->where('orden_compra_id', $ordenCompraId)
-            ->select('producto_id', DB::raw('SUM(cantidad) as total_ordenado'))
-            ->groupBy('producto_id')
-            ->pluck('total_ordenado', 'producto_id');
+            ->join('productos', 'productos.id', '=', 'orden_compra_detalles.producto_id')
+            ->selectRaw('
+                orden_compra_detalles.producto_id,
+                SUM(orden_compra_detalles.cantidad)      AS total_unidades_ordenadas,
+                MAX(productos.unidades_por_empaque)      AS piezas_por_juego
+            ')
+            ->groupBy('orden_compra_detalles.producto_id')
+            ->get();
 
-        if ($ordenado->isEmpty()) {
+        if ($detallesOrden->isEmpty()) {
             return false;
         }
 
-        $recibido = DB::table('recepcion_detalles')
+        // Lo recibido está en JUEGOS (desde la corrección del Livewire component)
+        $recibidoJuegosPorProducto = DB::table('recepcion_detalles')
             ->join('recepciones', 'recepciones.id', '=', 'recepcion_detalles.recepcion_id')
             ->where('recepciones.orden_compra_id', $ordenCompraId)
-            ->select('recepcion_detalles.producto_id', DB::raw('SUM(recepcion_detalles.cantidad_recibida) as total_recibido'))
+            ->selectRaw('recepcion_detalles.producto_id, SUM(recepcion_detalles.cantidad_recibida) as total_recibido_juegos')
             ->groupBy('recepcion_detalles.producto_id')
-            ->pluck('total_recibido', 'recepcion_detalles.producto_id');
+            ->pluck('total_recibido_juegos', 'recepcion_detalles.producto_id');
 
-        foreach ($ordenado as $productoId => $totalOrdenado) {
-            $totalRecibido = (int) ($recibido[$productoId] ?? 0);
-            if ($totalRecibido < (int) $totalOrdenado) {
+        foreach ($detallesOrden as $detalle) {
+            $piezasPorJuego         = (int) ($detalle->piezas_por_juego ?? 0);
+            $totalUnidadesOrdenadas = (int) $detalle->total_unidades_ordenadas;
+
+            // Convertimos unidades ordenadas → juegos ordenados
+            $totalJuegosOrdenados = $piezasPorJuego > 0
+                ? (int) ceil($totalUnidadesOrdenadas / $piezasPorJuego)
+                : $totalUnidadesOrdenadas;
+
+            $totalJuegosRecibidos = (int) ($recibidoJuegosPorProducto[$detalle->producto_id] ?? 0);
+
+            if ($totalJuegosRecibidos < $totalJuegosOrdenados) {
                 return false;
             }
         }
@@ -177,3 +200,4 @@ class RegistrarRecepcionService
         return true;
     }
 }
+
