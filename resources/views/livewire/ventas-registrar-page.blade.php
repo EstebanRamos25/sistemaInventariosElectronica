@@ -52,12 +52,18 @@
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                     <label class="block text-sm font-medium">Tipo de pago</label>
-                    <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model="tipo_pago">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="qr">QR</option>
-                        <option value="transferencia">Transferencia</option>
+                    <select class="mt-1 w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm" wire:model.live="tipo_pago">
+                        <option value="efectivo">💵 Efectivo</option>
+                        <option value="qr">📱 QR</option>
+                        <option value="pendiente_pago">⏳ Pendiente / Pagar después</option>
                     </select>
                     @error('tipo_pago') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+
+                    @if ($tipo_pago === 'pendiente_pago')
+                        <div class="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            ⚠️ El inventario se reduce inmediatamente, pero <strong>el monto NO se registra en caja</strong> hasta que se confirme el cobro.
+                        </div>
+                    @endif
                 </div>
                 <div>
                     <label class="block text-sm font-medium">Descuento ($)</label>
@@ -310,11 +316,16 @@
             {{-- Botón registrar --}}
             <div class="flex items-center gap-3">
                 <button
-                    class="rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="rounded px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                        {{ $tipo_pago === 'pendiente_pago' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-gray-900 hover:bg-gray-700' }}"
                     type="submit"
                     @disabled(! $cajaAbierta)
                 >
-                    Registrar venta · ${{ number_format($this->totalFinal, 2) }}
+                    @if ($tipo_pago === 'pendiente_pago')
+                        ⏳ Registrar venta (pendiente de cobro) · ${{ number_format($this->totalFinal, 2) }}
+                    @else
+                        Registrar venta · ${{ number_format($this->totalFinal, 2) }}
+                    @endif
                 </button>
                 @if (!$cajaAbierta)
                     <span class="text-sm text-yellow-700">Abre la caja primero</span>
@@ -323,4 +334,57 @@
 
         </form>
     </div>
+
+    {{-- ── PANEL: VENTAS PENDIENTES DE COBRO ──────────────────────────────── --}}
+    @if ($ventasPendientes->isNotEmpty())
+        <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-lg">⏳</span>
+                <h2 class="text-sm font-semibold text-amber-900">Ventas pendientes de cobro</h2>
+                <span class="ml-1 inline-flex items-center rounded-full bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">
+                    {{ $ventasPendientes->count() }}
+                </span>
+            </div>
+
+            <div class="space-y-2">
+                @foreach ($ventasPendientes as $vp)
+                    <div class="rounded-lg border border-amber-100 bg-white px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-mono text-sm font-medium text-gray-900">{{ $vp->numero_venta }}</span>
+                                <span class="text-xs text-gray-500">· {{ \Carbon\Carbon::parse($vp->fecha_venta)->format('d/m/Y H:i') }}</span>
+                            </div>
+                            <div class="mt-0.5 text-xs text-gray-500">
+                                {{ $vp->detalles->map(fn($d) => ($d->producto?->codigo ?? '#'.$d->producto_id).' x'.$d->cantidad)->join(', ') }}
+                            </div>
+                            @if ($vp->observaciones)
+                                <div class="mt-0.5 text-xs italic text-amber-700">{{ $vp->observaciones }}</div>
+                            @endif
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-base font-bold text-gray-900">${{ number_format((float)$vp->total, 2) }}</span>
+                            <div class="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    class="rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    wire:click="cobrarPendiente({{ $vp->id }}, 'efectivo')"
+                                    wire:confirm="¿Confirmar cobro de ${{ number_format((float)$vp->total, 2) }} en efectivo?"
+                                >
+                                    💵 Efectivo
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    wire:click="cobrarPendiente({{ $vp->id }}, 'qr')"
+                                    wire:confirm="¿Confirmar cobro de ${{ number_format((float)$vp->total, 2) }} por QR?"
+                                >
+                                    📱 QR
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 </div>

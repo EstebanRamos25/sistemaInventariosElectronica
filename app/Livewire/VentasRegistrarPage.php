@@ -239,6 +239,11 @@ class VentasRegistrarPage extends Component
                 ->where('estado', 'abierta')
                 ->orderByDesc('fecha_apertura')
                 ->first(),
+            'ventasPendientes' => \App\Models\Venta::query()
+                ->where('estado', 'pendiente_pago')
+                ->with('detalles.producto')
+                ->orderByDesc('fecha_venta')
+                ->get(),
         ]);
     }
 
@@ -258,7 +263,7 @@ class VentasRegistrarPage extends Component
         }
 
         $data = $this->validate([
-            'tipo_pago'                => ['required', 'string', Rule::in(['efectivo', 'qr', 'transferencia'])],
+            'tipo_pago'                => ['required', 'string', Rule::in(['efectivo', 'qr', 'pendiente_pago'])],
             'descuento'                => ['required', 'numeric', 'min:0'],
             'observaciones'            => ['nullable', 'string'],
             'items'                    => ['required', 'array', 'min:1'],
@@ -295,5 +300,43 @@ class VentasRegistrarPage extends Component
             Session::flash('error', 'Error registrando venta.');
             report($e);
         }
+    }
+
+    // ── Cobrar venta pendiente ──────────────────────────────────────────────
+
+    /**
+     * Convierte una venta "pendiente_pago" en pagada:
+     * registra el movimiento de caja y cambia el estado a 'completada'.
+     */
+    public function cobrarPendiente(int $ventaId, string $tipoPago = 'efectivo'): void
+    {
+        $caja = \App\Models\Caja::query()->where('estado', 'abierta')->orderByDesc('fecha_apertura')->first();
+        if (! $caja) {
+            Session::flash('error', 'Abre la caja antes de registrar el cobro.');
+            return;
+        }
+
+        $venta = \App\Models\Venta::query()->find($ventaId);
+        if (! $venta || $venta->estado !== 'pendiente_pago') {
+            Session::flash('error', 'Esta venta no está pendiente de pago.');
+            return;
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($venta, $caja, $tipoPago) {
+            $venta->estado   = 'completada';
+            $venta->tipo_pago= $tipoPago;
+            $venta->save();
+
+            $venta->movimientosCaja()->create([
+                'caja_id'          => $caja->id,
+                'tipo'             => 'ingreso',
+                'categoria'        => 'venta',
+                'monto'            => $venta->total,
+                'descripcion'      => "Cobro pendiente: Venta {$venta->numero_venta}",
+                'fecha_movimiento' => now(),
+            ]);
+        });
+
+        Session::flash('status', "Venta {$venta->numero_venta} marcada como pagada. Total cobrado: \${$venta->total}");
     }
 }

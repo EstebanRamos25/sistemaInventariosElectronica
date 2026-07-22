@@ -173,6 +173,8 @@ class RegistrarVentaService
             $venta->subtotal = $subtotal;
             $venta->descuento = $descuento;
             $venta->total = $total;
+            // Estado según si hay pago real o es crédito informal
+            $venta->estado = $tipoPago === 'pendiente_pago' ? 'pendiente_pago' : 'completada';
             $venta->save();
 
             foreach ($detalleRows as $row) {
@@ -183,14 +185,18 @@ class RegistrarVentaService
                 $venta->movimientosInventario()->create($movimiento);
             }
 
-            $venta->movimientosCaja()->create([
-                'caja_id' => $caja->id,
-                'tipo' => 'ingreso',
-                'categoria' => 'venta',
-                'monto' => $venta->total,
-                'descripcion' => "Venta {$venta->numero_venta}",
-                'fecha_movimiento' => $fechaVenta,
-            ]);
+            // Solo registrar en caja cuando el pago es real (efectivo / QR)
+            // Las ventas "Pendiente / Pagar después" NO generan movimiento de caja
+            if ($tipoPago !== 'pendiente_pago') {
+                $venta->movimientosCaja()->create([
+                    'caja_id'          => $caja->id,
+                    'tipo'             => 'ingreso',
+                    'categoria'        => 'venta',
+                    'monto'            => $venta->total,
+                    'descripcion'      => "Venta {$venta->numero_venta}",
+                    'fecha_movimiento' => $fechaVenta,
+                ]);
+            }
 
             foreach ($alertasPendientes as $alertaData) {
                 $alerta = AlertaReposicion::query()->firstOrNew([

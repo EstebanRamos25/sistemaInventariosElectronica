@@ -141,7 +141,9 @@ class CajasPage extends Component
 
     public function cerrar(int $cajaId): void
     {
-        DB::transaction(function () use ($cajaId) {
+        $mensaje = 'Caja cerrada.';
+
+        DB::transaction(function () use ($cajaId, &$mensaje) {
             $caja = Caja::query()->lockForUpdate()->findOrFail($cajaId);
             if ($caja->estado !== 'abierta') {
                 return;
@@ -151,6 +153,15 @@ class CajasPage extends Component
                 ->where('caja_id', $caja->id)
                 ->selectRaw("COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE -monto END), 0) as neto")
                 ->value('neto') ?? 0);
+
+            $tieneVentas = Venta::query()->where('caja_id', $caja->id)->exists();
+
+            // Si no hubo ventas ni movimientos → eliminar el registro (sesión vacía)
+            if (! $tieneVentas && $neto == 0.0) {
+                $caja->delete();
+                $mensaje = 'Caja cerrada y sesión vacía eliminada del historial.';
+                return;
+            }
 
             $montoEsperado = (float) $caja->monto_inicial + $neto;
             $montoFinalIngresado = (float) $this->monto_final;
@@ -165,7 +176,7 @@ class CajasPage extends Component
             $caja->save();
         });
 
-        session()->flash('status', 'Caja cerrada.');
+        session()->flash('status', $mensaje);
 
         $this->monto_final = '0.00';
     }
